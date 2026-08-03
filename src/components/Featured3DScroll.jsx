@@ -60,6 +60,25 @@ const Featured3DScroll = ({ onAddToCart }) => {
   const containerRef = useRef(null);
   const [selectedItem, setSelectedItem] = useState(null);
   
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"]
+  });
+
+  // Helix Math
+  const itemsCount = featuredItems.length;
+  const isMobile = window.innerWidth < 768;
+  const radius = isMobile ? 200 : 450; 
+  const angleStep = 45; // Degrees between items (tighter spin)
+  const yStep = isMobile ? 120 : 180; // Vertical distance between items (much tighter vertically)
+  
+  const totalAngle = (itemsCount - 1) * angleStep;
+  const totalY = (itemsCount - 1) * yStep;
+
+  // The container rotates and translates inversely to the scroll progress
+  const helixRotateY = useTransform(scrollYProgress, [0, 1], [0, totalAngle]);
+  const helixTranslateY = useTransform(scrollYProgress, [0, 1], [0, -totalY]);
+
   const handleItemClick = (item) => {
     setSelectedItem(item);
   };
@@ -73,30 +92,48 @@ const Featured3DScroll = ({ onAddToCart }) => {
 
   return (
     <>
-      <div className="featured-section">
-        <div className="container">
-          <h2 className="section-title text-center" style={{ marginBottom: '2rem' }}>
-            Our Top 10 Signatures
-          </h2>
-        </div>
+      <div className="featured-3d-container" ref={containerRef}>
+        <div className="sticky-wrapper">
+          <div className="title-3d-wrap">
+             <h2 className="section-title text-center" style={{ margin: 0 }}>
+               Our Top 10 Signatures
+             </h2>
+          </div>
           
-        <div className="horizontal-scroll-container" style={{ paddingLeft: 'max(20px, calc((100vw - 1200px) / 2 + 20px))', paddingRight: '20px' }}>
-          {featuredItems.map((item) => (
-            <div 
-              key={item.id} 
-              className="signature-card"
-              onClick={() => handleItemClick(item)}
+          <div className="perspective-container">
+            <motion.div 
+              className="helix-container"
+              style={{
+                rotateY: helixRotateY,
+                y: helixTranslateY
+              }}
             >
-                <div className="card-image-wrap">
-                  <img src={item.image} alt={item.name} />
-                </div>
-                <div className="card-content">
-                  <h3>{item.name}</h3>
-                  <span className="price">₹{item.price}</span>
-                  <p className="click-hint">Click for details</p>
-                </div>
-              </div>
-            ))}
+              {featuredItems.map((item, index) => {
+                const itemAngle = index * -angleStep;
+                const itemY = index * yStep;
+
+                return (
+                  <div 
+                    key={item.id} 
+                    className="card-3d"
+                    onClick={() => handleItemClick(item)}
+                    style={{
+                      transform: `rotateY(${itemAngle}deg) translateZ(${radius}px) translateY(${itemY}px)`
+                    }}
+                  >
+                    <div className="card-image-wrap">
+                      <img src={item.image} alt={item.name} />
+                    </div>
+                    <div className="card-content">
+                      <h3>{item.name}</h3>
+                      <span className="price">₹{item.price}</span>
+                      <p className="click-hint">Click for details</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </motion.div>
+          </div>
         </div>
       </div>
 
