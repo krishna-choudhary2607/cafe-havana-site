@@ -324,3 +324,26 @@
     padding: 0;
   }
 }
+
+@media (max-width: 768px) {
+  .admin-dashboard {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+  .admin-sidebar {
+    width: 100%;
+    max-height: 40vh;
+    border-right: none;
+    border-bottom: 1px solid #333;
+  }
+  .admin-main {
+    padding: 1rem;
+    align-items: center;
+  }
+  .bill-paper {
+    width: 100%;
+    max-width: 380px;
+    padding: 1.5rem;
+  }
+}

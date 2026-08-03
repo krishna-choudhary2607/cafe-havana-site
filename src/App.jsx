@@ -25,7 +25,7 @@ function CafeSite() {
       }
       return [...prev, { ...item, quantity: 1 }];
     });
-    setIsCartOpen(true);
+    // Removed setIsCartOpen(true) so cart doesn't pop open on every tap
   };
   
   const removeFromCart = (id) => {
