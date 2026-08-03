@@ -28,6 +28,7 @@ const Footer = () => {
             <li><button onClick={() => document.getElementById('about').scrollIntoView({ behavior: 'smooth' })}>About</button></li>
             <li><button onClick={() => document.getElementById('menu').scrollIntoView({ behavior: 'smooth' })}>Menu</button></li>
             <li><button onClick={() => document.getElementById('reservation').scrollIntoView({ behavior: 'smooth' })}>Reservation</button></li>
+            <li><button onClick={() => window.location.href = '/admin'}>Admin Portal</button></li>
           </ul>
         </div>
 
