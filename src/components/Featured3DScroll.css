@@ -9,11 +9,9 @@
   position: sticky;
   top: 0;
   height: 100vh; 
+  height: 100dvh; /* Dynamic viewport height to prevent mobile bottom-clipping */
   width: 100%;
   overflow: hidden;
-  /* Add smooth fade at top and bottom to prevent sharp clipping of 3D cards */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 2%, black 15%, black 85%, transparent 98%);
-  mask-image: linear-gradient(to bottom, transparent 2%, black 15%, black 85%, transparent 98%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -56,14 +54,13 @@
   left: -175px; /* Half of width */
   width: 350px;
   height: 450px;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-dark); /* Solid background fixes mobile 3D z-sorting bugs! */
+  border: 1px solid rgba(212, 175, 55, 0.3); /* Accent border */
   border-radius: 20px;
   padding: 20px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
   transform-style: preserve-3d;
   cursor: pointer;
   transition: border-color 0.3s, box-shadow 0.3s;
