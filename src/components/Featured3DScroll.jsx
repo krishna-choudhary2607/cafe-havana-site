@@ -97,7 +97,6 @@ const Featured3DScroll = ({ onAddToCart }) => {
                 </div>
               </div>
             ))}
-          </div>
         </div>
       </div>
 
