@@ -11,7 +11,7 @@ const Cart = ({ isOpen, onClose, items, onRemove, onUpdateQuantity, clearCart })
 
   const total = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (!tableNumber) {
       alert('Please scan a valid table QR code to place an order.');
       return;
@@ -26,16 +26,24 @@ const Cart = ({ isOpen, onClose, items, onRemove, onUpdateQuantity, clearCart })
       status: 'pending'
     };
 
-    const existingOrders = JSON.parse(localStorage.getItem('cafe_orders') || '[]');
-    localStorage.setItem('cafe_orders', JSON.stringify([...existingOrders, order]));
-    
-    setOrderSuccess(true);
-    clearCart();
-    
-    setTimeout(() => {
-      setOrderSuccess(false);
-      onClose();
-    }, 3000);
+    try {
+      await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(order)
+      });
+      
+      setOrderSuccess(true);
+      clearCart();
+      
+      setTimeout(() => {
+        setOrderSuccess(false);
+        onClose();
+      }, 3000);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to send order to kitchen. Please try again.');
+    }
   };
 
   return (

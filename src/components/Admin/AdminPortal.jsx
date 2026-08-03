@@ -21,9 +21,14 @@ const AdminPortal = () => {
     }
   }, [isAuthenticated]);
 
-  const loadOrders = () => {
-    const savedOrders = JSON.parse(localStorage.getItem('cafe_orders') || '[]');
-    setOrders(savedOrders.reverse()); // newest first
+  const loadOrders = async () => {
+    try {
+      const res = await fetch('/api/orders');
+      const savedOrders = await res.json();
+      setOrders(savedOrders.reverse()); // newest first
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleLogin = (e) => {
@@ -41,11 +46,19 @@ const AdminPortal = () => {
     alert('UPI ID saved for receiving payments!');
   };
 
-  const markAsCompleted = (orderId) => {
-    const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: 'completed' } : o);
-    localStorage.setItem('cafe_orders', JSON.stringify(updatedOrders.reverse())); // reverse back to original chronological or just save
-    loadOrders();
-    setSelectedOrder(null);
+  const markAsCompleted = async (orderId) => {
+    try {
+      await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'completed' })
+      });
+      loadOrders();
+      setSelectedOrder(null);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to mark as completed');
+    }
   };
 
   if (!isAuthenticated) {
