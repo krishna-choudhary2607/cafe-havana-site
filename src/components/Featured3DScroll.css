@@ -8,7 +8,7 @@
 .sticky-wrapper {
   position: sticky;
   top: 0;
-  height: 85vh; /* Reduced from 100vh to avoid massive blank spaces at bottom */
+  height: 100vh; /* MUST be 100vh to cover viewport and prevent clipping/gaps */
   width: 100%;
   overflow: hidden;
   display: flex;
