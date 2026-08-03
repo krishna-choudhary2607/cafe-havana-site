@@ -8,10 +8,12 @@
 .sticky-wrapper {
   position: sticky;
   top: 0;
-  height: 100vh; 
-  height: 100dvh; /* Dynamic viewport height to prevent mobile bottom-clipping */
+  height: 100dvh; 
   width: 100%;
   overflow: hidden;
+  /* Soften top and bottom edges so cards fade out instead of slicing */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 1%, black 10%, black 90%, transparent 99%);
+  mask-image: linear-gradient(to bottom, transparent 1%, black 10%, black 90%, transparent 99%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -50,18 +52,20 @@
 
 .card-3d {
   position: absolute;
-  top: -225px; /* Half of height */
-  left: -175px; /* Half of width */
+  top: -225px; 
+  left: -175px; 
   width: 350px;
   height: 450px;
-  background: var(--color-bg-dark); /* Solid background fixes mobile 3D z-sorting bugs! */
-  border: 1px solid rgba(212, 175, 55, 0.3); /* Accent border */
+  /* Lighter than background so cards in the back of the spiral are visible, not camouflaged */
+  background: #36312D; 
+  border: 1px solid rgba(212, 175, 55, 0.3); 
   border-radius: 20px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
   transform-style: preserve-3d;
+  backface-visibility: visible;
   cursor: pointer;
   transition: border-color 0.3s, box-shadow 0.3s;
 }
