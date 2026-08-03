@@ -1,0 +1,255 @@
+.featured-3d-container {
+  /* Very tall to allow lots of scrolling */
+  height: 400vh; 
+  background-color: var(--color-bg-dark);
+  position: relative;
+}
+
+.sticky-wrapper {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title-3d-wrap {
+  position: absolute;
+  top: 10%;
+  width: 100%;
+  z-index: 100;
+  pointer-events: none;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+}
+
+.title-3d-wrap .section-title {
+  color: var(--color-accent);
+}
+
+.perspective-container {
+  perspective: 1200px;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.helix-container {
+  position: relative;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.card-3d {
+  position: absolute;
+  top: -225px; /* Half of height */
+  left: -175px; /* Half of width */
+  width: 350px;
+  height: 450px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+  transform-style: preserve-3d;
+  cursor: pointer;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.card-3d:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 30px 60px rgba(166, 124, 82, 0.2);
+}
+
+.card-image-wrap {
+  width: 100%;
+  height: 70%;
+  border-radius: 15px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.card-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-content {
+  text-align: center;
+  transform: translateZ(30px);
+  pointer-events: none;
+}
+
+.card-content h3 {
+  font-size: 1.3rem;
+  color: var(--color-text-light);
+  margin-bottom: 5px;
+}
+
+.card-content .price {
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  color: var(--color-accent);
+  font-weight: 700;
+  display: block;
+}
+
+.click-hint {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Modal Styles */
+.item-modal-portal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.item-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.item-modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 800px;
+  background: var(--color-bg-dark);
+  border-radius: 20px;
+  display: flex;
+  overflow: hidden;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  z-index: 2001;
+}
+
+.close-modal-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.3s;
+}
+
+.close-modal-btn:hover {
+  background: var(--color-accent);
+}
+
+.item-modal-image {
+  flex: 1;
+  max-width: 50%;
+}
+
+.item-modal-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.item-modal-info {
+  flex: 1;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.item-modal-info h2 {
+  font-size: 2.2rem;
+  color: var(--color-text-light);
+  margin-bottom: 10px;
+}
+
+.modal-price {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  color: var(--color-accent);
+  font-weight: 700;
+  margin-bottom: 25px;
+}
+
+.ingredients-box {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+}
+
+.ingredients-box h4 {
+  color: var(--color-primary);
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+.ingredients-box p {
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+.add-order-btn {
+  width: 100%;
+  padding: 16px;
+  font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+  .card-3d {
+    width: 280px;
+    height: 380px;
+    top: -190px;
+    left: -140px;
+  }
+  
+  .item-modal-content {
+    flex-direction: column;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .item-modal-image {
+    max-width: 100%;
+    height: 250px;
+  }
+  
+  .item-modal-info {
+    padding: 30px 20px;
+  }
+}
