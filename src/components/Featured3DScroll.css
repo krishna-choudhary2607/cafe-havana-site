@@ -1,6 +1,6 @@
 .featured-3d-container {
-  /* Very tall to allow lots of scrolling */
-  height: 400vh; 
+  /* Reduced from 400vh to 250vh for faster scrolling through the ring */
+  height: 250vh; 
   background-color: var(--color-bg-dark);
   position: relative;
 }
@@ -8,7 +8,7 @@
 .sticky-wrapper {
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 90vh; /* Don't take up entire screen */
   width: 100%;
   overflow: hidden;
   display: flex;
@@ -18,7 +18,7 @@
 
 .title-3d-wrap {
   position: absolute;
-  top: 10%;
+  top: 5%; /* Higher up to leave room for the carousel */
   width: 100%;
   z-index: 100;
   pointer-events: none;
