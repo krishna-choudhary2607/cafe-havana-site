@@ -68,9 +68,9 @@ const Featured3DScroll = ({ onAddToCart }) => {
   // Helix Math
   const itemsCount = featuredItems.length;
   const isMobile = window.innerWidth < 768;
-  const radius = isMobile ? 200 : 450; 
-  const angleStep = 45; // Degrees between items (tighter spin)
-  const yStep = isMobile ? 120 : 180; // Vertical distance between items (much tighter vertically)
+  const radius = isMobile ? 250 : 450; 
+  const angleStep = isMobile ? 60 : 45; 
+  const yStep = isMobile ? 180 : 200; 
   
   const totalAngle = (itemsCount - 1) * angleStep;
   const totalY = (itemsCount - 1) * yStep;
