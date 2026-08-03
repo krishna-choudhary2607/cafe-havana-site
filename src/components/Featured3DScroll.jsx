@@ -60,23 +60,6 @@ const Featured3DScroll = ({ onAddToCart }) => {
   const containerRef = useRef(null);
   const [selectedItem, setSelectedItem] = useState(null);
   
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end end"]
-  });
-
-  // Ring Carousel Math
-  const itemsCount = featuredItems.length;
-  const radius = window.innerWidth < 768 ? 180 : 350; 
-  const angleStep = 360 / itemsCount; 
-  const yStep = 0; 
-  
-  const totalAngle = 360; 
-
-  // The container rotates to bring each item to the front
-  const helixRotateY = useTransform(scrollYProgress, [0, 1], [0, totalAngle]);
-  const helixTranslateY = 0;
-
   const handleItemClick = (item) => {
     setSelectedItem(item);
   };
@@ -90,47 +73,30 @@ const Featured3DScroll = ({ onAddToCart }) => {
 
   return (
     <>
-      <div className="featured-3d-container" ref={containerRef}>
-        <div className="sticky-wrapper">
-          <div className="title-3d-wrap">
-             <h2 className="section-title text-center" style={{ margin: 0 }}>
-               Our Top 10 Signatures
-             </h2>
-          </div>
+      <div className="featured-section">
+        <div className="container">
+          <h2 className="section-title text-center" style={{ marginBottom: '2rem' }}>
+            Our Top 10 Signatures
+          </h2>
+        </div>
           
-          <div className="perspective-container">
-            <motion.div 
-              className="helix-container"
-              style={{
-                rotateY: helixRotateY,
-                y: helixTranslateY
-              }}
+        <div className="horizontal-scroll-container" style={{ paddingLeft: 'max(20px, calc((100vw - 1200px) / 2 + 20px))', paddingRight: '20px' }}>
+          {featuredItems.map((item) => (
+            <div 
+              key={item.id} 
+              className="signature-card"
+              onClick={() => handleItemClick(item)}
             >
-              {featuredItems.map((item, index) => {
-                const itemAngle = index * -angleStep;
-                const itemY = index * yStep;
-
-                return (
-                  <div 
-                    key={item.id} 
-                    className="card-3d"
-                    onClick={() => handleItemClick(item)}
-                    style={{
-                      transform: `rotateY(${itemAngle}deg) translateZ(${radius}px) translateY(${itemY}px)`
-                    }}
-                  >
-                    <div className="card-image-wrap">
-                      <img src={item.image} alt={item.name} />
-                    </div>
-                    <div className="card-content">
-                      <h3>{item.name}</h3>
-                      <span className="price">₹{item.price}</span>
-                      <p className="click-hint">Click for details</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </motion.div>
+                <div className="card-image-wrap">
+                  <img src={item.image} alt={item.name} />
+                </div>
+                <div className="card-content">
+                  <h3>{item.name}</h3>
+                  <span className="price">₹{item.price}</span>
+                  <p className="click-hint">Click for details</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
