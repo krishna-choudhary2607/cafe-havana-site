@@ -238,6 +238,11 @@
     left: -140px;
   }
   
+  .title-3d-wrap .section-title {
+    font-size: 2rem;
+    padding: 0 15px;
+  }
+  
   .item-modal-content {
     flex-direction: column;
     max-height: 90vh;
