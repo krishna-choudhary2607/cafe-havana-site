@@ -63,6 +63,8 @@
   flex-direction: column;
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
   transform-style: preserve-3d;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   cursor: pointer;
   transition: border-color 0.3s, box-shadow 0.3s;
 }
