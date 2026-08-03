@@ -8,6 +8,8 @@ const AdminPortal = () => {
   
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedTable, setSelectedTable] = useState(null);
+  const [viewMode, setViewMode] = useState('orders'); // 'orders' | 'tables'
   
   // Real payment UPI ID configuration
   const [upiId, setUpiId] = useState(localStorage.getItem('cafe_upi_id') || '');
@@ -61,6 +63,63 @@ const AdminPortal = () => {
     }
   };
 
+  const markTableAsCompleted = async (tableNumber) => {
+    if (!window.confirm(`Are you sure you want to clear all active orders for Table ${tableNumber}?`)) return;
+    try {
+      await fetch(`/api/orders/table/${tableNumber}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'completed' })
+      });
+      loadOrders();
+      setSelectedTable(null);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to clear table orders');
+    }
+  };
+
+  // Derive active tables for the Table View
+  const activeTablesMap = new Map();
+  orders.filter(o => o.status !== 'completed').forEach(o => {
+    if (!activeTablesMap.has(o.tableNumber)) {
+      activeTablesMap.set(o.tableNumber, {
+        tableNumber: o.tableNumber,
+        orders: []
+      });
+    }
+    activeTablesMap.get(o.tableNumber).orders.push(o);
+  });
+  const activeTables = Array.from(activeTablesMap.values());
+
+  // Helper to generate combined bill for a table
+  const getCombinedTableBill = (tableData) => {
+    if (!tableData) return null;
+    let combinedItems = [];
+    let combinedTotal = 0;
+
+    tableData.orders.forEach(order => {
+      combinedTotal += order.total;
+      order.items.forEach(item => {
+        const existing = combinedItems.find(i => i.name === item.name);
+        if (existing) {
+          existing.quantity += item.quantity;
+        } else {
+          combinedItems.push({ ...item });
+        }
+      });
+    });
+
+    return {
+      tableNumber: tableData.tableNumber,
+      items: combinedItems,
+      total: combinedTotal,
+      orderCount: tableData.orders.length
+    };
+  };
+
+  const combinedBill = selectedTable ? getCombinedTableBill(activeTablesMap.get(selectedTable)) : null;
+
   if (!isAuthenticated) {
     return (
       <div className="admin-login-wrapper">
@@ -92,6 +151,21 @@ const AdminPortal = () => {
           <p>Admin Dashboard</p>
         </div>
         
+        <div className="view-toggle">
+          <button 
+            className={`toggle-btn ${viewMode === 'orders' ? 'active' : ''}`}
+            onClick={() => setViewMode('orders')}
+          >
+            All Orders
+          </button>
+          <button 
+            className={`toggle-btn ${viewMode === 'tables' ? 'active' : ''}`}
+            onClick={() => setViewMode('tables')}
+          >
+            Table Bills
+          </button>
+        </div>
+
         <div className="settings-panel">
           <h3>Payment Settings</h3>
           {isEditingUpi || !upiId ? (
@@ -110,31 +184,56 @@ const AdminPortal = () => {
               <button onClick={() => setIsEditingUpi(true)} className="btn-outline small-btn">Edit</button>
             </div>
           )}
-          <p className="settings-hint">Enter your actual UPI ID here to test real payments via the QR code!</p>
         </div>
 
         <ul className="order-list">
-          {orders.map(order => (
-            <li 
-              key={order.id} 
-              className={`order-item ${order.status === 'completed' ? 'completed' : 'pending'} ${selectedOrder?.id === order.id ? 'active' : ''}`}
-              onClick={() => setSelectedOrder(order)}
-            >
-              <div className="order-item-header">
-                <span className="table-badge">Table {order.tableNumber}</span>
-                <span className="time">{new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-              </div>
-              <div className="order-item-summary">
-                ₹{order.total.toFixed(2)} - {order.items.length} items
-              </div>
-            </li>
-          ))}
-          {orders.length === 0 && <p className="no-orders">No orders yet.</p>}
+          {viewMode === 'orders' ? (
+            // ORDERS VIEW
+            <>
+              {orders.map(order => (
+                <li 
+                  key={order.id} 
+                  className={`order-item ${order.status === 'completed' ? 'completed' : 'pending'} ${selectedOrder?.id === order.id ? 'active' : ''}`}
+                  onClick={() => { setSelectedOrder(order); setSelectedTable(null); }}
+                >
+                  <div className="order-item-header">
+                    <span className="table-badge">Table {order.tableNumber}</span>
+                    <span className="time">{new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  <div className="order-item-summary">
+                    ₹{order.total.toFixed(2)} - {order.items.length} items
+                  </div>
+                </li>
+              ))}
+              {orders.length === 0 && <p className="no-orders">No orders yet.</p>}
+            </>
+          ) : (
+            // TABLES VIEW
+            <>
+              {activeTables.map(table => (
+                <li 
+                  key={`table-${table.tableNumber}`} 
+                  className={`order-item pending ${selectedTable === table.tableNumber ? 'active' : ''}`}
+                  onClick={() => { setSelectedTable(table.tableNumber); setSelectedOrder(null); }}
+                >
+                  <div className="order-item-header">
+                    <span className="table-badge">Table {table.tableNumber}</span>
+                    <span className="time">{table.orders.length} active orders</span>
+                  </div>
+                  <div className="order-item-summary">
+                    Combined Bill: ₹{getCombinedTableBill(table).total.toFixed(2)}
+                  </div>
+                </li>
+              ))}
+              {activeTables.length === 0 && <p className="no-orders">No active tables.</p>}
+            </>
+          )}
         </ul>
       </div>
 
       <div className="admin-main">
-        {selectedOrder ? (
+        {viewMode === 'orders' && selectedOrder ? (
+          // INDIVIDUAL ORDER BILL
           <div className="bill-container">
             <div className="bill-paper" id={`printable-bill-${selectedOrder.id}`}>
               <div className="bill-header">
@@ -186,30 +285,80 @@ const AdminPortal = () => {
                     alt="Payment QR Code" 
                     className="qr-code"
                   />
-                  <p className="qr-hint">Supports GPay, PhonePe, Paytm</p>
                 </div>
               )}
-              
-              <div className="bill-footer">
-                <p>Thank you for dining with us!</p>
-              </div>
             </div>
 
             <div className="bill-actions">
-              <button 
-                className="btn-primary print-btn" 
-                onClick={() => window.print()}
-              >
-                Print Bill
-              </button>
+              <button className="btn-primary print-btn" onClick={() => window.print()}>Print Bill</button>
               {selectedOrder.status !== 'completed' && (
-                <button 
-                  className="btn-outline complete-btn" 
-                  onClick={() => markAsCompleted(selectedOrder.id)}
-                >
+                <button className="btn-outline complete-btn" onClick={() => markAsCompleted(selectedOrder.id)}>
                   Mark as Paid & Completed
                 </button>
               )}
+            </div>
+          </div>
+        ) : viewMode === 'tables' && combinedBill ? (
+          // COMBINED TABLE BILL
+          <div className="bill-container">
+            <div className="bill-paper" id={`printable-bill-table-${combinedBill.tableNumber}`}>
+              <div className="bill-header">
+                <h2>Cafe Havana</h2>
+                <p>Jaipur, Rajasthan</p>
+                <div className="divider"></div>
+                <div className="bill-meta">
+                  <p><strong>Table:</strong> {combinedBill.tableNumber}</p>
+                  <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
+                  <p><strong>Aggregated Orders:</strong> {combinedBill.orderCount}</p>
+                </div>
+                <div className="divider"></div>
+              </div>
+              
+              <table className="bill-items">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {combinedBill.items.map((item, idx) => (
+                    <tr key={idx}>
+                      <td>{item.name}</td>
+                      <td>{item.quantity}</td>
+                      <td>₹{(item.price * item.quantity).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="divider"></div>
+              
+              <div className="bill-total">
+                <p>Subtotal: <span>₹{combinedBill.total.toFixed(2)}</span></p>
+                <p>CGST (2.5%): <span>₹{(combinedBill.total * 0.025).toFixed(2)}</span></p>
+                <p>SGST (2.5%): <span>₹{(combinedBill.total * 0.025).toFixed(2)}</span></p>
+                <h3 className="grand-total">Total: <span>₹{(combinedBill.total * 1.05).toFixed(2)}</span></h3>
+              </div>
+
+              {upiId && (
+                <div className="bill-qr-section">
+                  <p>Scan to Pay via UPI</p>
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`upi://pay?pa=${upiId}&pn=CafeHavana&am=${(combinedBill.total * 1.05).toFixed(2)}`)}`} 
+                    alt="Payment QR Code" 
+                    className="qr-code"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="bill-actions">
+              <button className="btn-primary print-btn" onClick={() => window.print()}>Print Bill</button>
+              <button className="btn-outline complete-btn" onClick={() => markTableAsCompleted(combinedBill.tableNumber)}>
+                Clear Table Bill
+              </button>
             </div>
           </div>
         ) : (
@@ -221,7 +370,7 @@ const AdminPortal = () => {
               <line x1="16" y1="17" x2="8" y2="17"></line>
               <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
-            <h2>Select an order to view bill</h2>
+            <h2>{viewMode === 'orders' ? 'Select an order to view bill' : 'Select a table to view combined bill'}</h2>
           </div>
         )}
       </div>

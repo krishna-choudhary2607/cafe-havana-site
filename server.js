@@ -73,11 +73,32 @@ app.put('/api/orders/:id', (req, res) => {
   const orderIndex = activeOrders.findIndex(o => o.id === id);
   if (orderIndex !== -1) {
     activeOrders[orderIndex].status = status;
-    // We don't necessarily update the CSV line here as it's an append-only log,
-    // but the dashboard state is updated perfectly.
     res.json(activeOrders[orderIndex]);
   } else {
     res.status(404).json({ error: 'Order not found' });
+  }
+});
+
+app.put('/api/orders/table/:tableNumber', (req, res) => {
+  checkDateReset();
+  const { tableNumber } = req.params;
+  const { status } = req.body;
+  
+  let updatedCount = 0;
+  
+  // Mark all active orders for this table as completed
+  activeOrders = activeOrders.map(order => {
+    if (order.tableNumber.toString() === tableNumber.toString() && order.status !== 'completed') {
+      updatedCount++;
+      return { ...order, status: status || 'completed' };
+    }
+    return order;
+  });
+  
+  if (updatedCount > 0) {
+    res.json({ success: true, message: `Updated ${updatedCount} orders for table ${tableNumber}` });
+  } else {
+    res.status(404).json({ error: 'No active orders found for this table' });
   }
 });
 
