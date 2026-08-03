@@ -68,9 +68,9 @@ const Featured3DScroll = ({ onAddToCart }) => {
   // Helix Math
   const itemsCount = featuredItems.length;
   const isMobile = window.innerWidth < 768;
-  const radius = isMobile ? 250 : 450; 
-  const angleStep = isMobile ? 60 : 45; 
-  const yStep = isMobile ? 180 : 200; 
+  const radius = isMobile ? 320 : 450; // Increased mobile radius to prevent 3D intersections
+  const angleStep = 60; // Keep at 60 for both to prevent 3D intersection clipping
+  const yStep = isMobile ? 180 : 200; // Tighter vertical spiral on mobile only
   
   const totalAngle = (itemsCount - 1) * angleStep;
   const totalY = (itemsCount - 1) * yStep;
