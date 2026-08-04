@@ -82,22 +82,33 @@ const OrderPage = () => {
         </div>
 
         <div className="order-list">
-          {filteredItems.map((item) => (
-            <div key={item.id} className="order-item-row">
-              <div className="item-img-container">
-                <img src={item.image} alt={item.name} />
+          {filteredItems.map((item) => {
+            const cartItem = cartItems.find(i => i.id === item.id);
+            return (
+              <div key={item.id} className="order-item-row">
+                <div className="item-img-container">
+                  <img src={item.image} alt={item.name} />
+                </div>
+                <div className="item-details">
+                  <h4>{item.name}</h4>
+                  <span className="price">₹{item.price}</span>
+                </div>
+                <div className="item-action">
+                  {cartItem ? (
+                    <div className="qty-controls" style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--color-bg-light)', padding: '5px 10px', borderRadius: '20px', border: '1px solid var(--color-primary)' }}>
+                      <button onClick={() => updateQuantity(item.id, -1)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--color-text-main)' }}>-</button>
+                      <span style={{ fontWeight: 'bold', color: 'var(--color-text-main)', minWidth: '20px', textAlign: 'center' }}>{cartItem.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, 1)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--color-text-main)' }}>+</button>
+                    </div>
+                  ) : (
+                    <button className="add-btn" onClick={() => addToCart(item)}>
+                      <Plus size={16} /> ADD
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="item-details">
-                <h4>{item.name}</h4>
-                <span className="price">₹{item.price}</span>
-              </div>
-              <div className="item-action">
-                <button className="add-btn" onClick={() => addToCart(item)}>
-                  <Plus size={16} /> ADD
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       
