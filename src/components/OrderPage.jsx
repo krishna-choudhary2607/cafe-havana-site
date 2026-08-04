@@ -48,11 +48,10 @@ const OrderPage = () => {
   const updateQuantity = (id, delta) => {
     setCartItems(prev => prev.map(item => {
       if (item.id === id) {
-        const newQ = item.quantity + delta;
-        return newQ > 0 ? { ...item, quantity: newQ } : item;
+        return { ...item, quantity: item.quantity + delta };
       }
       return item;
-    }));
+    }).filter(item => item.quantity > 0));
   };
 
   const filteredItems = activeCategory === 'All' 
