@@ -3,6 +3,9 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { X, ChevronRight } from 'lucide-react';
 import './Featured3DScroll.css';
 
+const CARD_WIDTH = 280;
+const GAP = 24;
+
 const featuredItems = [
   { id: 1,  name: 'Garlic Bread Neapolitan',    price: 475,   image: 'https://images.unsplash.com/photo-1574484284002-952d92456975?auto=format&fit=crop&q=80&w=800', ingredients: 'Fresh Basil · Mozzarella · San Marzano Tomatoes · Olive Oil · Artisan Sourdough' },
   { id: 2,  name: 'Farm Fresh Pizza',            price: 695,   image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=800', ingredients: 'Bell Peppers · Olives · Onions · Mushrooms · Fresh Mozzarella · Homemade Tomato Sauce' },
@@ -16,6 +19,11 @@ const featuredItems = [
   { id: 10, name: 'Dal Makhani',                 price: 487.5, image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&q=80&w=800', ingredients: 'Black Lentils · Kidney Beans · Butter · Fresh Cream · Traditional Indian Spices' },
 ];
 
+// Total track width = all cards + all gaps
+const TOTAL_TRACK_WIDTH = featuredItems.length * CARD_WIDTH + (featuredItems.length - 1) * GAP;
+// How far the track slides: from 0 (first card at left edge of padded track) to -(all cards except last)
+const X_END = -(TOTAL_TRACK_WIDTH - CARD_WIDTH);
+
 const Featured3DScroll = () => {
   const containerRef = useRef(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -25,23 +33,15 @@ const Featured3DScroll = () => {
     offset: ['start start', 'end end'],
   });
 
-  // Horizontal translation
-  const x = useTransform(
-    scrollYProgress,
-    [0, 1],
-    ['calc(50vw - 160px)', `calc(50vw - 160px - ${(featuredItems.length - 1) * 310}px)`]
-  );
+  // Pure pixel interpolation — no calc() strings so Framer Motion can interpolate cleanly
+  const x = useTransform(scrollYProgress, [0, 1], [0, X_END]);
 
   // Progress bar
   const scaleX = useTransform(scrollYProgress, [0, 1], [0, 1]);
 
   return (
     <>
-      <section
-        className="signatures-section"
-        id="signatures"
-        ref={containerRef}
-      >
+      <section className="signatures-section" id="signatures" ref={containerRef}>
         <div className="signatures-sticky">
           {/* Section Header */}
           <div className="sig-header">
@@ -50,7 +50,7 @@ const Featured3DScroll = () => {
             <p className="sig-hint">Scroll to explore →</p>
           </div>
 
-          {/* Horizontal Track */}
+          {/* Horizontal Track — padding-left centers the first card */}
           <div className="sig-track-wrapper">
             <motion.div className="sig-track" style={{ x }}>
               {featuredItems.map((item, i) => (
@@ -58,19 +58,19 @@ const Featured3DScroll = () => {
                   key={item.id}
                   className="sig-card"
                   onClick={() => setSelectedItem(item)}
-                  whileHover={{ y: -8, transition: { duration: 0.3 } }}
+                  whileHover={{ y: -6, transition: { duration: 0.25 } }}
                 >
                   <div className="sig-card-img-wrap">
                     <img src={item.image} alt={item.name} loading="lazy" />
                     <div className="sig-card-overlay">
                       <span className="sig-view-label">
-                        View Details <ChevronRight size={14} />
+                        View Details <ChevronRight size={13} />
                       </span>
                     </div>
                   </div>
 
                   <div className="sig-card-body">
-                    <span className="sig-index">0{i + 1}</span>
+                    <span className="sig-index">{String(i + 1).padStart(2, '0')}</span>
                     <h3 className="sig-card-name">{item.name}</h3>
                     <span className="sig-card-price">₹{item.price}</span>
                   </div>
@@ -102,7 +102,7 @@ const Featured3DScroll = () => {
               initial={{ opacity: 0, scale: 0.94, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 20 }}
-              transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+              transition={{ duration: 0.32, ease: [0.25, 0.46, 0.45, 0.94] }}
             >
               <button className="close-modal-btn" onClick={() => setSelectedItem(null)}>
                 <X size={18} />
