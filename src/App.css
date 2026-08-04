@@ -7,3 +7,8 @@
 main {
   flex: 1;
 }
+
+/* Ensure seamless dark-to-light transitions */
+.section-transition-dark {
+  background: var(--color-bg-dark);
+}
