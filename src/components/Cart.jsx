@@ -57,21 +57,22 @@ const Cart = ({ isOpen, onClose, items, onRemove, onUpdateQuantity, clearCart })
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
-          <motion.div 
-            className="cart-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-          <motion.div 
-            className="cart-panel"
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'tween', duration: 0.3 }}
-          >
+        <motion.div key="cart-backdrop"
+          className="cart-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        />
+      )}
+      {isOpen && (
+        <motion.div key="cart-panel"
+          className="cart-panel"
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'tween', duration: 0.3 }}
+        >
             <div className="cart-header">
               <h3>{tableNumber ? `Table ${tableNumber} Order` : 'Your Order'}</h3>
               <button className="close-btn" onClick={onClose}><X size={24} /></button>
@@ -137,7 +138,6 @@ const Cart = ({ isOpen, onClose, items, onRemove, onUpdateQuantity, clearCart })
               </div>
             )}
           </motion.div>
-        </>
       )}
     </AnimatePresence>
   );
