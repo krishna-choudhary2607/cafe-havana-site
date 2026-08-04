@@ -114,7 +114,8 @@ const AdminPortal = () => {
       tableNumber: tableData.tableNumber,
       items: combinedItems,
       total: combinedTotal,
-      orderCount: tableData.orders.length
+      orderCount: tableData.orders.length,
+      orderIds: tableData.orders.map(o => o.id.slice(-6)).join(', ')
     };
   };
 
@@ -285,6 +286,7 @@ const AdminPortal = () => {
                 <div className="bill-meta">
                   <p><strong>Table:</strong> {combinedBill.tableNumber}</p>
                   <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
+                  <p><strong>Order ID(s):</strong> #{combinedBill.orderIds}</p>
                   <p><strong>Aggregated Orders:</strong> {combinedBill.orderCount}</p>
                 </div>
                 <div className="divider"></div>
