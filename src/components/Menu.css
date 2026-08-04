@@ -38,8 +38,24 @@
 
 .menu-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 30px;
+}
+
+@media (max-width: 1200px) {
+  .menu-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 900px) {
+  .menu-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .menu-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .menu-card {
@@ -70,47 +86,6 @@
 
 .menu-card:hover .menu-item-img {
   transform: scale(1.1);
-}
-
-.menu-item-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.menu-card:hover .menu-item-overlay {
-  opacity: 1;
-}
-
-.add-to-cart-btn {
-  background: var(--color-accent);
-  color: white;
-  border: none;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transform: translateY(20px);
-  transition: transform 0.3s, background 0.3s;
-}
-
-.menu-card:hover .add-to-cart-btn {
-  transform: translateY(0);
-}
-
-.add-to-cart-btn:hover {
-  background: var(--color-accent-hover);
 }
 
 .menu-info {

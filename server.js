@@ -53,6 +53,28 @@ function saveTableTokens(tokens) {
 
 let tableTokens = loadTableTokens();
 
+// Reservations Storage
+const reservationsFilePath = path.join(__dirname, 'reservations.json');
+
+function loadReservations() {
+  if (fs.existsSync(reservationsFilePath)) {
+    try {
+      return JSON.parse(fs.readFileSync(reservationsFilePath, 'utf8'));
+    } catch (err) {
+      console.error('Error reading reservations file, resetting to empty', err);
+    }
+  }
+  const initialReservations = [];
+  saveReservations(initialReservations);
+  return initialReservations;
+}
+
+function saveReservations(reservations) {
+  fs.writeFileSync(reservationsFilePath, JSON.stringify(reservations, null, 2));
+}
+
+let reservations = loadReservations();
+
 // Ensure CSV file exists with headers
 const csvFilePath = path.join(__dirname, 'orders_history.csv');
 if (!fs.existsSync(csvFilePath)) {
@@ -201,6 +223,37 @@ app.put('/api/orders/table/:tableNumber', (req, res) => {
     res.json({ success: true, message: `Updated ${updatedCount} orders for table ${tableNumber}` });
   } else {
     res.status(404).json({ error: 'No active orders found for this table' });
+  }
+});
+
+// Reservation Routes
+app.get('/api/reservations', (req, res) => {
+  res.json(reservations);
+});
+
+app.post('/api/reservations', (req, res) => {
+  const newReservation = {
+    id: crypto.randomBytes(4).toString('hex'),
+    ...req.body,
+    status: 'pending', // pending, approved, rejected
+    createdAt: new Date().toISOString()
+  };
+  reservations.push(newReservation);
+  saveReservations(reservations);
+  res.status(201).json({ success: true, reservation: newReservation });
+});
+
+app.put('/api/reservations/:id', (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const index = reservations.findIndex(r => r.id === id);
+  
+  if (index !== -1) {
+    reservations[index].status = status;
+    saveReservations(reservations);
+    res.json(reservations[index]);
+  } else {
+    res.status(404).json({ error: 'Reservation not found' });
   }
 });
 

@@ -56,7 +56,7 @@ const featuredItems = [
   },
 ];
 
-const Featured3DScroll = ({ onAddToCart }) => {
+const Featured3DScroll = () => {
   const containerRef = useRef(null);
   const [selectedItem, setSelectedItem] = useState(null);
   
@@ -68,9 +68,9 @@ const Featured3DScroll = ({ onAddToCart }) => {
   // Helix Math
   const itemsCount = featuredItems.length;
   const isMobile = window.innerWidth < 768;
-  const radius = isMobile ? 320 : 450; // Increased mobile radius to prevent 3D intersections
-  const angleStep = 60; // Keep at 60 for both to prevent 3D intersection clipping
-  const yStep = isMobile ? 180 : 200; // Tighter vertical spiral on mobile only
+  const radius = isMobile ? 320 : 450;
+  const angleStep = 60;
+  const yStep = isMobile ? 180 : 200;
   
   const totalAngle = (itemsCount - 1) * angleStep;
   const totalY = (itemsCount - 1) * yStep;
@@ -81,13 +81,6 @@ const Featured3DScroll = ({ onAddToCart }) => {
 
   const handleItemClick = (item) => {
     setSelectedItem(item);
-  };
-
-  const handleAddToCart = () => {
-    if (selectedItem) {
-      onAddToCart(selectedItem);
-      setSelectedItem(null);
-    }
   };
 
   return (
@@ -169,11 +162,6 @@ const Featured3DScroll = ({ onAddToCart }) => {
                   <h4>Ingredients</h4>
                   <p>{selectedItem.ingredients}</p>
                 </div>
-                
-                <button className="btn-primary add-order-btn" onClick={handleAddToCart}>
-                  <ShoppingBag size={20} />
-                  Add to Order
-                </button>
               </div>
             </motion.div>
           </div>

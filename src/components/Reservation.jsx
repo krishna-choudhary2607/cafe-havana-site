@@ -15,16 +15,25 @@ const Reservation = () => {
 
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Simulate booking
-    setTimeout(() => {
-      setIsSubmitted(true);
-      setTimeout(() => {
-        setIsSubmitted(false);
-        setFormData({ name: '', phone: '', date: '', time: '', guests: '2', request: '' });
-      }, 3000);
-    }, 1000);
+    try {
+      const response = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      if (response.ok) {
+        setIsSubmitted(true);
+        setTimeout(() => {
+          setIsSubmitted(false);
+          setFormData({ name: '', phone: '', date: '', time: '', guests: '2', request: '' });
+        }, 4000);
+      }
+    } catch (err) {
+      console.error('Error submitting reservation:', err);
+      alert('Failed to submit reservation. Please try again.');
+    }
   };
 
   const handleChange = (e) => {

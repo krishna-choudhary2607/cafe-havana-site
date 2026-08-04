@@ -7,31 +7,37 @@ const AdminPortal = () => {
   const [password, setPassword] = useState('');
   
   const [orders, setOrders] = useState([]);
+  const [reservations, setReservations] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedTable, setSelectedTable] = useState(null);
-  const [viewMode, setViewMode] = useState('orders'); // 'orders' | 'tables'
+  const [selectedReservation, setSelectedReservation] = useState(null);
+  const [viewMode, setViewMode] = useState('orders'); // 'orders' | 'tables' | 'reservations'
   
   // Real payment UPI ID configuration
   const [upiId, setUpiId] = useState(localStorage.getItem('cafe_upi_id') || '');
   const [isEditingUpi, setIsEditingUpi] = useState(false);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadOrders();
-      const interval = setInterval(loadOrders, 5000); // refresh every 5s
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated]);
-
-  const loadOrders = async () => {
+  const loadData = async () => {
     try {
-      const res = await fetch('/api/orders');
-      const savedOrders = await res.json();
+      const resOrders = await fetch('/api/orders');
+      const savedOrders = await resOrders.json();
       setOrders(savedOrders.reverse()); // newest first
+      
+      const resResv = await fetch('/api/reservations');
+      const savedResv = await resResv.json();
+      setReservations(savedResv.reverse());
     } catch (err) {
       console.error(err);
     }
   };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadData();
+      const interval = setInterval(loadData, 5000); // refresh every 5s
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -55,27 +61,38 @@ const AdminPortal = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'completed' })
       });
-      loadOrders();
+      loadData();
       setSelectedOrder(null);
     } catch (err) {
       console.error(err);
-      alert('Failed to mark as completed');
     }
   };
 
   const markTableAsCompleted = async (tableNumber) => {
-    if (!window.confirm(`Are you sure you want to clear all active orders for Table ${tableNumber}?`)) return;
     try {
       await fetch(`/api/orders/table/${tableNumber}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'completed' })
       });
-      loadOrders();
+      loadData();
       setSelectedTable(null);
     } catch (err) {
       console.error(err);
-      alert('Failed to clear table orders');
+    }
+  };
+
+  const updateReservationStatus = async (id, status) => {
+    try {
+      await fetch(`/api/reservations/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      loadData();
+      setSelectedReservation(null);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -162,15 +179,21 @@ const AdminPortal = () => {
         <div className="view-toggle">
           <button 
             className={`toggle-btn ${viewMode === 'orders' ? 'active' : ''}`}
-            onClick={() => setViewMode('orders')}
+            onClick={() => { setViewMode('orders'); setSelectedTable(null); setSelectedReservation(null); }}
           >
             All Orders
           </button>
           <button 
             className={`toggle-btn ${viewMode === 'tables' ? 'active' : ''}`}
-            onClick={() => setViewMode('tables')}
+            onClick={() => { setViewMode('tables'); setSelectedOrder(null); setSelectedReservation(null); }}
           >
             Table Bills
+          </button>
+          <button 
+            className={`toggle-btn ${viewMode === 'reservations' ? 'active' : ''}`}
+            onClick={() => { setViewMode('reservations'); setSelectedOrder(null); setSelectedTable(null); }}
+          >
+            Reservations
           </button>
         </div>
 
@@ -215,14 +238,14 @@ const AdminPortal = () => {
               ))}
               {orders.length === 0 && <p className="no-orders">No orders yet.</p>}
             </>
-          ) : (
+          ) : viewMode === 'tables' ? (
             // TABLES VIEW
             <>
               {activeTables.map(table => (
                 <li 
                   key={`table-${table.tableNumber}`} 
                   className={`order-item pending ${selectedTable === table.tableNumber ? 'active' : ''}`}
-                  onClick={() => { setSelectedTable(table.tableNumber); setSelectedOrder(null); }}
+                  onClick={() => { setSelectedTable(table.tableNumber); setSelectedOrder(null); setSelectedReservation(null); }}
                 >
                   <div className="order-item-header">
                     <span className="table-badge">Table {table.tableNumber}</span>
@@ -234,6 +257,27 @@ const AdminPortal = () => {
                 </li>
               ))}
               {activeTables.length === 0 && <p className="no-orders">No active tables.</p>}
+            </>
+          ) : (
+            // RESERVATIONS VIEW
+            <>
+              {reservations.map(resv => (
+                <li 
+                  key={resv.id} 
+                  className={`order-item ${resv.status === 'pending' ? 'pending' : 'completed'} ${selectedReservation?.id === resv.id ? 'active' : ''}`}
+                  onClick={() => { setSelectedReservation(resv); setSelectedOrder(null); setSelectedTable(null); }}
+                >
+                  <div className="order-item-header">
+                    <span className="table-badge">{resv.name}</span>
+                    <span className="time">{new Date(resv.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  <div className="order-item-summary">
+                    {resv.date} at {resv.time} - {resv.guests} Guests
+                  </div>
+                  <div className={`status-text ${resv.status}`}>{resv.status.toUpperCase()}</div>
+                </li>
+              ))}
+              {reservations.length === 0 && <p className="no-orders">No reservations yet.</p>}
             </>
           )}
         </ul>
@@ -339,6 +383,41 @@ const AdminPortal = () => {
               </button>
             </div>
           </div>
+        ) : viewMode === 'reservations' && selectedReservation ? (
+          // RESERVATION DETAILS
+          <div className="kot-container">
+            <div className="kot-paper" style={{ padding: '30px' }}>
+              <div className="kot-header">
+                <h2>{selectedReservation.name}</h2>
+                <span className={`status-badge ${selectedReservation.status}`}>{selectedReservation.status}</span>
+              </div>
+              <div className="kot-meta">
+                <p><strong>Phone:</strong> {selectedReservation.phone}</p>
+                <p><strong>Date:</strong> {selectedReservation.date}</p>
+                <p><strong>Time:</strong> {selectedReservation.time}</p>
+                <p><strong>Guests:</strong> {selectedReservation.guests}</p>
+              </div>
+              {selectedReservation.request && (
+                <>
+                  <div className="divider"></div>
+                  <div className="ingredients-box" style={{ background: 'transparent' }}>
+                    <h4>Special Request</h4>
+                    <p>{selectedReservation.request}</p>
+                  </div>
+                </>
+              )}
+              <div className="divider"></div>
+            </div>
+
+            <div className="bill-actions">
+              {selectedReservation.status === 'pending' && (
+                <>
+                  <button className="btn-primary" onClick={() => updateReservationStatus(selectedReservation.id, 'approved')}>Approve</button>
+                  <button className="btn-outline complete-btn" onClick={() => updateReservationStatus(selectedReservation.id, 'rejected')}>Reject</button>
+                </>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="empty-state">
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="1">
@@ -348,7 +427,11 @@ const AdminPortal = () => {
               <line x1="16" y1="17" x2="8" y2="17"></line>
               <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
-            <h2>{viewMode === 'orders' ? 'Select an order to view bill' : 'Select a table to view combined bill'}</h2>
+            <h2>
+              {viewMode === 'orders' ? 'Select an order to view bill' : 
+               viewMode === 'tables' ? 'Select a table to view combined bill' : 
+               'Select a reservation to view details'}
+            </h2>
           </div>
         )}
       </div>

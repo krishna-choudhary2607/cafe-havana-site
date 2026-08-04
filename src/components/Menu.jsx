@@ -20,7 +20,7 @@ const menuItems = [
 
 const categories = ['All', 'Italian', 'Chinese', 'Indian', 'Starters', 'Beverages'];
 
-const Menu = ({ onAddToCart }) => {
+const Menu = () => {
   const [activeCategory, setActiveCategory] = useState('All');
 
   const filteredItems = activeCategory === 'All' 
@@ -66,11 +66,6 @@ const Menu = ({ onAddToCart }) => {
               >
                 <div className="menu-img-wrap">
                   <img src={item.image} alt={item.name} className="menu-item-img" />
-                  <div className="menu-item-overlay">
-                    <button className="add-to-cart-btn" onClick={() => onAddToCart(item)}>
-                      <Plus size={24} />
-                    </button>
-                  </div>
                 </div>
                 <div className="menu-info">
                   <div className="menu-title-row">

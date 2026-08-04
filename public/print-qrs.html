@@ -128,7 +128,7 @@
 
                 tableNumbers.forEach(i => {
                     const token = tokens[i];
-                    const tableUrl = `${baseUrl}/?table=${i}&token=${token}`;
+                    const tableUrl = `${baseUrl}/order?table=${i}&token=${token}`;
                     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tableUrl)}`;
                     
                     grid.innerHTML += `
