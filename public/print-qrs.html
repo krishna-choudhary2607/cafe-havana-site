@@ -3,149 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cafe Havana - Print Table QRs</title>
+    <title>Print Table QR Codes</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap');
-
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f4f4f4;
-            color: #111;
-            margin: 0;
-            padding: 2rem;
+            font-family: system-ui, -apple-system, sans-serif;
             text-align: center;
+            background: #f4f4f4;
+            padding: 20px;
         }
-
         .controls {
-            background: white;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            max-width: 600px;
-            margin: 0 auto 3rem auto;
+            margin-bottom: 20px;
         }
-
-        .controls h2 {
-            font-family: 'Playfair Display', serif;
-            color: #d4af37;
-            margin-top: 0;
-        }
-
         .controls input {
-            width: 80%;
-            padding: 12px;
-            margin: 1rem 0;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 1rem;
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
         }
-
-        .btn {
+        .controls button {
+            padding: 10px 20px;
+            font-size: 16px;
             background: #d4af37;
-            color: black;
             border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
+            color: black;
             font-weight: bold;
             cursor: pointer;
-            font-size: 1rem;
         }
-        
-        .btn:hover {
-            background: #b5952f;
-        }
-
-        .qr-grid {
+        .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
             max-width: 1000px;
             margin: 0 auto;
         }
-
         .qr-card {
             background: white;
-            padding: 2rem;
-            border-radius: 12px;
-            border: 2px solid #eee;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             page-break-inside: avoid;
         }
-
-        .qr-card h3 {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.8rem;
-            margin: 0 0 0.5rem 0;
-        }
-
-        .qr-card p {
-            color: #666;
-            margin: 0 0 1.5rem 0;
-            font-size: 0.9rem;
-        }
-
         .qr-card img {
-            width: 180px;
-            height: 180px;
-            border: 10px solid white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            width: 100%;
+            height: auto;
         }
-
+        .qr-card h2 {
+            margin: 10px 0 0;
+            font-size: 1.5rem;
+            color: #333;
+        }
+        .qr-card p {
+            margin: 5px 0 0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
         @media print {
-            body {
-                background: white;
-                padding: 0;
-            }
-            .controls {
-                display: none;
-            }
-            .qr-card {
-                border: 2px dashed #ccc;
-                box-shadow: none;
-                margin-bottom: 2rem;
-            }
+            body { background: white; padding: 0; }
+            .controls { display: none; }
+            .grid { gap: 10px; }
+            .qr-card { box-shadow: none; border: 1px solid #ddd; }
         }
     </style>
 </head>
 <body>
-
     <div class="controls">
         <h2>Generate Table QR Codes</h2>
-        <p>Enter your live Render URL to generate scanning codes for your tables.</p>
-        <input type="url" id="siteUrl" placeholder="e.g. https://cafe-havana-site.onrender.com" value="http://localhost:5173" />
-        <br/>
-        <button class="btn" onclick="generateQRs()">Update QRs</button>
-        <button class="btn" onclick="window.print()" style="margin-left: 10px;">Print Page</button>
+        <p>Enter your website URL below (e.g., https://cafe-havana-site.onrender.com) and click Generate.</p>
+        <input type="text" id="baseUrl" placeholder="https://yourwebsite.com">
+        <button onclick="generateQRs()">Generate</button>
+        <button onclick="window.print()" style="background: #333; color: white;">Print</button>
     </div>
 
-    <div class="qr-grid" id="qrGrid">
-        <!-- QRs will be injected here -->
-    </div>
+    <div class="grid" id="qrGrid"></div>
 
     <script>
+        // Auto-detect current URL if possible
+        const currentUrl = window.location.origin;
+        if(currentUrl && !currentUrl.includes('localhost')) {
+            document.getElementById('baseUrl').value = currentUrl;
+        }
+
         function generateQRs() {
-            const urlInput = document.getElementById('siteUrl').value.replace(/\/$/, "");
+            let baseUrl = document.getElementById('baseUrl').value.trim();
+            if(!baseUrl) return alert('Please enter your website URL');
+            if(baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+
             const grid = document.getElementById('qrGrid');
             grid.innerHTML = '';
 
-            for (let i = 1; i <= 10; i++) {
-                const targetUrl = `${urlInput}/?table=${i}`;
-                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(targetUrl)}`;
+            for(let i = 1; i <= 20; i++) {
+                const tableUrl = `${baseUrl}/?table=${i}`;
+                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tableUrl)}`;
                 
-                const card = document.createElement('div');
-                card.className = 'qr-card';
-                card.innerHTML = `
-                    <h3>Table ${i}</h3>
-                    <p>Scan to order food!</p>
-                    <img src="${qrUrl}" alt="Table ${i} QR" />
+                grid.innerHTML += `
+                    <div class="qr-card">
+                        <img src="${qrUrl}" alt="Table ${i} QR" loading="lazy">
+                        <h2>Table ${i}</h2>
+                        <p>Scan to Order</p>
+                    </div>
                 `;
-                grid.appendChild(card);
             }
         }
-
-        // Generate initial batch
-        generateQRs();
+        
+        // Auto-generate on load if URL is detected
+        if(document.getElementById('baseUrl').value) {
+            generateQRs();
+        }
     </script>
 </body>
 </html>
