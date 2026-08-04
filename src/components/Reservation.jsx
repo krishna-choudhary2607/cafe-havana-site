@@ -78,6 +78,17 @@ const Reservation = () => {
             <div className="success-message">
               <h3>Table Reserved!</h3>
               <p>We look forward to hosting you, {formData.name}.</p>
+              <br/>
+              <p><strong>Note:</strong> Your reservation will be valid from <strong>{formData.time}</strong> until <strong>{
+                formData.time ? (() => {
+                  const [hours, minutes] = formData.time.split(':').map(Number);
+                  const dateObj = new Date();
+                  dateObj.setHours(hours);
+                  dateObj.setMinutes(minutes + 30);
+                  return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                })() : ''
+              }</strong>.</p>
+              <p>After this 30-minute window, your reservation may be cancelled.</p>
             </div>
           ) : (
             <form className="reservation-form glass" onSubmit={handleSubmit}>

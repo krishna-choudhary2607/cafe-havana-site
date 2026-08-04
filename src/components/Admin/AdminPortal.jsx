@@ -397,15 +397,13 @@ const AdminPortal = () => {
                 <p><strong>Time:</strong> {selectedReservation.time}</p>
                 <p><strong>Guests:</strong> {selectedReservation.guests}</p>
               </div>
-              {selectedReservation.request && (
-                <>
-                  <div className="divider"></div>
-                  <div className="ingredients-box" style={{ background: 'transparent' }}>
-                    <h4>Special Request</h4>
-                    <p>{selectedReservation.request}</p>
-                  </div>
-                </>
-              )}
+              
+              <div className="divider"></div>
+              <div className="ingredients-box" style={{ background: 'transparent' }}>
+                <h4>Special Request</h4>
+                <p>{selectedReservation.request ? selectedReservation.request : <em>None provided</em>}</p>
+              </div>
+              
               <div className="divider"></div>
             </div>
 
