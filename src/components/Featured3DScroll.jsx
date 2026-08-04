@@ -65,19 +65,7 @@ const Featured3DScroll = () => {
     offset: ["start start", "end end"]
   });
 
-  // Helix Math
-  const itemsCount = featuredItems.length;
-  const isMobile = window.innerWidth < 768;
-  // Ring Carousel Math
-  const radius = isMobile ? 220 : 380;
-  const angleStep = 360 / itemsCount;
-  const yStep = 0;
-  
-  const totalAngle = 360;
-
-  // The container rotates to bring each item to the front
-  const helixRotateY = useTransform(scrollYProgress, [0, 1], [0, totalAngle]);
-  const helixTranslateY = 0;
+  const x = useTransform(scrollYProgress, [0, 1], ["0%", "calc(-100% + 100vw)"]);
 
   const handleItemClick = (item) => {
     setSelectedItem(item);
@@ -85,48 +73,35 @@ const Featured3DScroll = () => {
 
   return (
     <>
-      <div className="featured-3d-container" ref={containerRef}>
-        <div className="sticky-wrapper">
-          <div className="title-3d-wrap">
+      <div className="featured-horizontal-container" ref={containerRef}>
+        <div className="sticky-wrapper horizontal-sticky">
+          <div className="title-horizontal-wrap">
              <h2 className="section-title text-center" style={{ margin: 0 }}>
                Our Top 10 Signatures
              </h2>
           </div>
           
-          <div className="perspective-container">
-            <motion.div 
-              className="helix-container"
-              style={{
-                rotateY: helixRotateY,
-                y: helixTranslateY
-              }}
-            >
-              {featuredItems.map((item, index) => {
-                const itemAngle = index * -angleStep;
-                const itemY = index * yStep;
-
-                return (
-                  <div 
-                    key={item.id} 
-                    className="card-3d"
-                    onClick={() => handleItemClick(item)}
-                    style={{
-                      transform: `rotateY(${itemAngle}deg) translateZ(${radius}px) translateY(${itemY}px)`
-                    }}
-                  >
-                    <div className="card-image-wrap">
-                      <img src={item.image} alt={item.name} />
-                    </div>
-                    <div className="card-content">
-                      <h3>{item.name}</h3>
-                      <span className="price">₹{item.price}</span>
-                      <p className="click-hint">Click for details</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </motion.div>
-          </div>
+          <motion.div 
+            className="horizontal-track"
+            style={{ x }}
+          >
+            {featuredItems.map((item, index) => (
+              <div 
+                key={item.id} 
+                className="horizontal-card"
+                onClick={() => handleItemClick(item)}
+              >
+                <div className="card-image-wrap">
+                  <img src={item.image} alt={item.name} />
+                </div>
+                <div className="card-content">
+                  <h3>{item.name}</h3>
+                  <span className="price">₹{item.price}</span>
+                  <p className="click-hint">Click for details</p>
+                </div>
+              </div>
+            ))}
+          </motion.div>
         </div>
       </div>
 
