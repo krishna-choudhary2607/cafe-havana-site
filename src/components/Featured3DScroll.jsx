@@ -68,16 +68,16 @@ const Featured3DScroll = () => {
   // Helix Math
   const itemsCount = featuredItems.length;
   const isMobile = window.innerWidth < 768;
-  const radius = isMobile ? 320 : 450;
-  const angleStep = 60;
-  const yStep = isMobile ? 180 : 200;
+  // Ring Carousel Math
+  const radius = isMobile ? 220 : 380;
+  const angleStep = 360 / itemsCount;
+  const yStep = 0;
   
-  const totalAngle = (itemsCount - 1) * angleStep;
-  const totalY = (itemsCount - 1) * yStep;
+  const totalAngle = 360;
 
-  // The container rotates and translates inversely to the scroll progress
+  // The container rotates to bring each item to the front
   const helixRotateY = useTransform(scrollYProgress, [0, 1], [0, totalAngle]);
-  const helixTranslateY = useTransform(scrollYProgress, [0, 1], [0, -totalY]);
+  const helixTranslateY = 0;
 
   const handleItemClick = (item) => {
     setSelectedItem(item);
