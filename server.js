@@ -1,9 +1,11 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,6 +13,22 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per `window`
+  message: { error: 'Too many requests, please try again later.' }
+});
+
+const adminAuth = (req, res, next) => {
+  const token = (req.headers.authorization && req.headers.authorization.split(' ')[1]) || req.body.password;
+  const adminPwd = process.env.ADMIN_PASSWORD || 'krishna123';
+  if (token === adminPwd) {
+    next();
+  } else {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+};
 
 // In-memory active orders (cleared daily)
 let activeOrders = [];
@@ -84,75 +102,81 @@ if (!fs.existsSync(csvFilePath)) {
 // Helper to safely format CSV cells
 const formatCSV = (str) => `"${String(str).replace(/"/g, '""')}"`;
 
+// Admin Auth endpoints
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body;
+  const adminPwd = process.env.ADMIN_PASSWORD || 'krishna123';
+  if (password === adminPwd) {
+    res.json({ success: true, token: adminPwd });
+  } else {
+    res.status(401).json({ error: 'Invalid credentials' });
+  }
+});
+
+// Config endpoints
+const configFilePath = path.join(__dirname, 'cafe_config.json');
+
+function loadConfig() {
+  if (fs.existsSync(configFilePath)) {
+    try { return JSON.parse(fs.readFileSync(configFilePath, 'utf8')); } catch (e) {}
+  }
+  return { upiId: '' };
+}
+
+app.get('/api/config', (req, res) => {
+  res.json(loadConfig());
+});
+
+app.put('/api/config', adminAuth, (req, res) => {
+  const config = loadConfig();
+  if (req.body.upiId !== undefined) {
+    config.upiId = req.body.upiId;
+    fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2));
+  }
+  res.json(config);
+});
+
 // API Routes
-app.get('/api/orders', (req, res) => {
+app.get('/api/orders', adminAuth, (req, res) => {
   checkDateReset();
   res.json(activeOrders);
 });
 
-app.post('/api/table-tokens', (req, res) => {
-  const { password } = req.body;
-  // Hardcoded simple admin auth for QR generation
-  if (password !== 'krishna123') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  
+app.post('/api/table-tokens', adminAuth, (req, res) => {
   res.json({ success: true, tokens: tableTokens });
 });
 
-app.post('/api/table-tokens/regenerate', (req, res) => {
-  const { password, tableNumber } = req.body;
-  if (password !== 'krishna123') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  
+app.post('/api/table-tokens/regenerate', adminAuth, (req, res) => {
+  const { tableNumber } = req.body;
   if (!tableNumber || !tableTokens[tableNumber]) {
     return res.status(400).json({ error: 'Invalid table number' });
   }
-  
-  // Generate a brand new random token for this specific table
   tableTokens[tableNumber] = crypto.randomBytes(4).toString('hex');
   saveTableTokens(tableTokens);
-  
   res.json({ success: true, tokens: tableTokens });
 });
 
-app.post('/api/table-tokens/add', (req, res) => {
-  const { password, tableNumber } = req.body;
-  if (password !== 'krishna123') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  
-  let newTableNumber = tableNumber;
-  if (!newTableNumber) {
-    // Find highest table number
+app.post('/api/table-tokens/add', adminAuth, (req, res) => {
+  let { tableNumber } = req.body;
+  if (!tableNumber) {
     const existingTables = Object.keys(tableTokens).map(Number).filter(n => !isNaN(n));
-    newTableNumber = existingTables.length > 0 ? Math.max(...existingTables) + 1 : 1;
+    tableNumber = existingTables.length > 0 ? Math.max(...existingTables) + 1 : 1;
   }
-  
-  if (tableTokens[newTableNumber]) {
+  if (tableTokens[tableNumber]) {
     return res.status(400).json({ error: 'Table already exists' });
   }
-  
-  tableTokens[newTableNumber] = crypto.randomBytes(4).toString('hex');
+  tableTokens[tableNumber] = crypto.randomBytes(4).toString('hex');
   saveTableTokens(tableTokens);
-  
-  res.json({ success: true, tokens: tableTokens, newTableNumber });
+  res.json({ success: true, tokens: tableTokens, newTableNumber: tableNumber });
 });
 
-app.post('/api/table-tokens/delete', (req, res) => {
-  const { password, tableNumber } = req.body;
-  if (password !== 'krishna123') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  
+app.post('/api/table-tokens/delete', adminAuth, (req, res) => {
+  const { tableNumber } = req.body;
   if (!tableNumber || !tableTokens[tableNumber]) {
     return res.status(400).json({ error: 'Invalid table number' });
   }
-  
   delete tableTokens[tableNumber];
   saveTableTokens(tableTokens);
-  
   res.json({ success: true, tokens: tableTokens });
 });
 
@@ -189,7 +213,7 @@ app.post('/api/orders', (req, res) => {
   res.status(201).json({ success: true, order });
 });
 
-app.put('/api/orders/:id', (req, res) => {
+app.put('/api/orders/:id', adminAuth, (req, res) => {
   checkDateReset();
   const { id } = req.params;
   const { status } = req.body;
@@ -203,7 +227,7 @@ app.put('/api/orders/:id', (req, res) => {
   }
 });
 
-app.put('/api/orders/table/:tableNumber', (req, res) => {
+app.put('/api/orders/table/:tableNumber', adminAuth, (req, res) => {
   checkDateReset();
   const { tableNumber } = req.params;
   const { status } = req.body;
@@ -227,8 +251,11 @@ app.put('/api/orders/table/:tableNumber', (req, res) => {
 });
 
 // Reservation Routes
-app.get('/api/reservations', (req, res) => {
-  res.json(reservations);
+app.get('/api/reservations', adminAuth, (req, res) => {
+  // Only return today's and future reservations to prevent UI bloat
+  const todayStr = new Date().toISOString().split('T')[0];
+  const activeRes = reservations.filter(r => r.date >= todayStr);
+  res.json(activeRes);
 });
 
 app.post('/api/reservations', (req, res) => {
@@ -243,7 +270,7 @@ app.post('/api/reservations', (req, res) => {
   res.status(201).json({ success: true, reservation: newReservation });
 });
 
-app.put('/api/reservations/:id', (req, res) => {
+app.put('/api/reservations/:id', adminAuth, (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   const index = reservations.findIndex(r => r.id === id);

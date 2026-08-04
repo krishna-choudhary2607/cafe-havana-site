@@ -15,6 +15,13 @@ const Reservation = () => {
 
   const [isSubmitted, setIsSubmitted] = useState(false);
 
+  // Helper to get local date string (YYYY-MM-DD) for min attribute
+  const getLocalDateString = () => {
+    const today = new Date();
+    today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+    return today.toISOString().split('T')[0];
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -96,12 +103,12 @@ const Reservation = () => {
                 <input type="text" name="name" placeholder="Your Name" required value={formData.name} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <input type="tel" name="phone" placeholder="Phone Number" required value={formData.phone} onChange={handleChange} />
+                <input type="tel" name="phone" placeholder="Phone Number" required pattern="[0-9]{10}" title="Please enter a valid 10-digit phone number" value={formData.phone} onChange={handleChange} />
               </div>
               <div className="form-row">
                 <div className="form-group icon-input">
                   <Calendar size={18} className="input-icon" />
-                  <input type="date" name="date" required value={formData.date} onChange={handleChange} />
+                  <input type="date" name="date" required min={getLocalDateString()} value={formData.date} onChange={handleChange} />
                 </div>
                 <div className="form-group icon-input">
                   <Clock size={18} className="input-icon" />

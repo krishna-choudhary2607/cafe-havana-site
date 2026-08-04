@@ -14,16 +14,18 @@ const AdminPortal = () => {
   const [viewMode, setViewMode] = useState('orders'); // 'orders' | 'tables' | 'reservations'
   
   // Real payment UPI ID configuration
-  const [upiId, setUpiId] = useState(localStorage.getItem('cafe_upi_id') || '');
+  const [upiId, setUpiId] = useState('');
   const [isEditingUpi, setIsEditingUpi] = useState(false);
+  const [authToken, setAuthToken] = useState('');
 
   const loadData = async () => {
     try {
-      const resOrders = await fetch('/api/orders');
+      const headers = { 'Authorization': `Bearer ${authToken}` };
+      const resOrders = await fetch('/api/orders', { headers });
       const savedOrders = await resOrders.json();
       setOrders(savedOrders.reverse()); // newest first
       
-      const resResv = await fetch('/api/reservations');
+      const resResv = await fetch('/api/reservations', { headers });
       const savedResv = await resResv.json();
       setReservations(savedResv.reverse());
     } catch (err) {
@@ -39,26 +41,53 @@ const AdminPortal = () => {
     }
   }, [isAuthenticated]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (username === 'krishna' && password === 'krishna123') {
-      setIsAuthenticated(true);
-    } else {
-      alert('Invalid credentials');
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAuthToken(data.token);
+        setIsAuthenticated(true);
+        // Fetch config
+        const confRes = await fetch('/api/config');
+        if (confRes.ok) {
+          const config = await confRes.json();
+          setUpiId(config.upiId || '');
+        }
+      } else {
+        alert('Invalid credentials');
+      }
+    } catch (err) {
+      alert('Network error during login');
     }
   };
 
-  const saveUpiId = () => {
-    localStorage.setItem('cafe_upi_id', upiId);
-    setIsEditingUpi(false);
-    alert('UPI ID saved for receiving payments!');
+  const saveUpiId = async () => {
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({ upiId })
+      });
+      if (res.ok) {
+        setIsEditingUpi(false);
+        alert('UPI ID saved for receiving payments!');
+      }
+    } catch (err) {
+      console.error('Failed to save UPI ID', err);
+    }
   };
 
   const markAsCompleted = async (orderId) => {
     try {
       await fetch(`/api/orders/${orderId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify({ status: 'completed' })
       });
       loadData();
@@ -72,7 +101,7 @@ const AdminPortal = () => {
     try {
       await fetch(`/api/orders/table/${tableNumber}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify({ status: 'completed' })
       });
       loadData();
@@ -86,7 +115,7 @@ const AdminPortal = () => {
     try {
       await fetch(`/api/reservations/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify({ status })
       });
       loadData();
@@ -274,6 +303,11 @@ const AdminPortal = () => {
                   <div className="order-item-summary">
                     {resv.date} at {resv.time} - {resv.guests} Guests
                   </div>
+                  {resv.request && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--color-accent)', marginTop: '4px', fontStyle: 'italic' }}>
+                      Request: {resv.request.length > 30 ? resv.request.substring(0, 30) + '...' : resv.request}
+                    </div>
+                  )}
                   <div className={`status-text ${resv.status}`}>{resv.status.toUpperCase()}</div>
                 </li>
               ))}
