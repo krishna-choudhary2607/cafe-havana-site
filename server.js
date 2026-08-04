@@ -24,6 +24,8 @@ function checkDateReset() {
     currentDateString = todayString;
     console.log(`[System] Date changed to ${todayString}. Cleared active orders dashboard.`);
   }
+}
+
 // Dynamic Table Tokens Storage
 const tokensFilePath = path.join(__dirname, 'table_tokens.json');
 
