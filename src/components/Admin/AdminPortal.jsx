@@ -149,6 +149,13 @@ const AdminPortal = () => {
         <div className="admin-header">
           <h2>Cafe Havana</h2>
           <p>Admin Dashboard</p>
+          <button 
+            className="btn-outline" 
+            style={{ marginTop: '10px', width: '100%', fontSize: '0.8rem' }}
+            onClick={() => window.open('/print-qrs.html', '_blank')}
+          >
+            Manage Table QR Codes
+          </button>
         </div>
         
         <div className="view-toggle">

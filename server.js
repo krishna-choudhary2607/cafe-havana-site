@@ -24,14 +24,32 @@ function checkDateReset() {
     currentDateString = todayString;
     console.log(`[System] Date changed to ${todayString}. Cleared active orders dashboard.`);
   }
+// Dynamic Table Tokens Storage
+const tokensFilePath = path.join(__dirname, 'table_tokens.json');
+
+// Initialize or load tokens
+function loadTableTokens() {
+  if (fs.existsSync(tokensFilePath)) {
+    try {
+      return JSON.parse(fs.readFileSync(tokensFilePath, 'utf8'));
+    } catch (err) {
+      console.error('Error reading tokens file, resetting to default', err);
+    }
+  }
+  // Generate default random tokens for 30 tables
+  const initialTokens = {};
+  for (let i = 1; i <= 30; i++) {
+    initialTokens[i] = crypto.randomBytes(4).toString('hex');
+  }
+  saveTableTokens(initialTokens);
+  return initialTokens;
 }
 
-// Secure Table Tokens
-const SECRET_KEY = process.env.TABLE_SECRET || 'CafeHavanaSecureSecret2026';
-
-function generateTableToken(tableNumber) {
-  return crypto.createHash('md5').update(String(tableNumber) + SECRET_KEY).digest('hex').substring(0, 8);
+function saveTableTokens(tokens) {
+  fs.writeFileSync(tokensFilePath, JSON.stringify(tokens, null, 2));
 }
+
+let tableTokens = loadTableTokens();
 
 // Ensure CSV file exists with headers
 const csvFilePath = path.join(__dirname, 'orders_history.csv');
@@ -55,11 +73,24 @@ app.post('/api/table-tokens', (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   
-  const tokens = {};
-  for(let i = 1; i <= 30; i++) {
-    tokens[i] = generateTableToken(i);
+  res.json({ success: true, tokens: tableTokens });
+});
+
+app.post('/api/table-tokens/regenerate', (req, res) => {
+  const { password, tableNumber } = req.body;
+  if (password !== 'krishna123') {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
-  res.json({ success: true, tokens });
+  
+  if (!tableNumber || !tableTokens[tableNumber]) {
+    return res.status(400).json({ error: 'Invalid table number' });
+  }
+  
+  // Generate a brand new random token for this specific table
+  tableTokens[tableNumber] = crypto.randomBytes(4).toString('hex');
+  saveTableTokens(tableTokens);
+  
+  res.json({ success: true, tokens: tableTokens });
 });
 
 app.post('/api/orders', (req, res) => {
@@ -67,10 +98,10 @@ app.post('/api/orders', (req, res) => {
   const order = req.body;
   
   // Verify Secure Table Token
-  const expectedToken = generateTableToken(order.tableNumber);
-  if (order.token !== expectedToken) {
+  const expectedToken = tableTokens[order.tableNumber];
+  if (!expectedToken || order.token !== expectedToken) {
     return res.status(403).json({ 
-      error: 'Invalid or missing Table QR Token. You must scan the physical QR code on your table to place an order.' 
+      error: 'Invalid or expired Table QR Token. You must scan the latest physical QR code on your table to place an order.' 
     });
   }
   
