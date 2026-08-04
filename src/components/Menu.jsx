@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus } from 'lucide-react';
 import './Menu.css';
 
 const menuItems = [
@@ -87,11 +86,6 @@ const Menu = () => {
               >
                 <div className="menu-img-wrap">
                   <img src={item.image} alt={item.name} loading="lazy" />
-                  <div className="menu-img-overlay">
-                    <a href="/order" className="menu-quick-order">
-                      <Plus size={16} /> Order
-                    </a>
-                  </div>
                 </div>
                 <div className="menu-card-body">
                   <div className="menu-card-top">
@@ -107,18 +101,6 @@ const Menu = () => {
           </AnimatePresence>
         </motion.div>
 
-        {/* CTA */}
-        <motion.div
-          className="menu-cta"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          <a href="/order" className="btn-primary">
-            View Full Menu & Order
-          </a>
-        </motion.div>
       </div>
     </section>
   );

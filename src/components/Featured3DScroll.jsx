@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
-import { X, ShoppingBag, ChevronRight } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
 import './Featured3DScroll.css';
 
 const featuredItems = [
@@ -121,16 +121,6 @@ const Featured3DScroll = () => {
                   <h4>Crafted With</h4>
                   <p>{selectedItem.ingredients}</p>
                 </div>
-
-                <button
-                  className="btn-primary add-order-btn"
-                  onClick={() => {
-                    window.location.href = '/order';
-                  }}
-                >
-                  <ShoppingBag size={16} />
-                  Order Now
-                </button>
               </div>
             </motion.div>
           </div>
