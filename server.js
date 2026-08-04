@@ -95,6 +95,45 @@ app.post('/api/table-tokens/regenerate', (req, res) => {
   res.json({ success: true, tokens: tableTokens });
 });
 
+app.post('/api/table-tokens/add', (req, res) => {
+  const { password, tableNumber } = req.body;
+  if (password !== 'krishna123') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  let newTableNumber = tableNumber;
+  if (!newTableNumber) {
+    // Find highest table number
+    const existingTables = Object.keys(tableTokens).map(Number).filter(n => !isNaN(n));
+    newTableNumber = existingTables.length > 0 ? Math.max(...existingTables) + 1 : 1;
+  }
+  
+  if (tableTokens[newTableNumber]) {
+    return res.status(400).json({ error: 'Table already exists' });
+  }
+  
+  tableTokens[newTableNumber] = crypto.randomBytes(4).toString('hex');
+  saveTableTokens(tableTokens);
+  
+  res.json({ success: true, tokens: tableTokens, newTableNumber });
+});
+
+app.post('/api/table-tokens/delete', (req, res) => {
+  const { password, tableNumber } = req.body;
+  if (password !== 'krishna123') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  if (!tableNumber || !tableTokens[tableNumber]) {
+    return res.status(400).json({ error: 'Invalid table number' });
+  }
+  
+  delete tableTokens[tableNumber];
+  saveTableTokens(tableTokens);
+  
+  res.json({ success: true, tokens: tableTokens });
+});
+
 app.post('/api/orders', (req, res) => {
   checkDateReset();
   const order = req.body;

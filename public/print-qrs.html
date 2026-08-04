@@ -67,11 +67,17 @@
 </head>
 <body>
     <div class="controls">
-        <h2>Generate Table QR Codes</h2>
-        <p>Enter your website URL below (e.g., https://cafe-havana-site.onrender.com) and click Generate.</p>
-        <input type="text" id="baseUrl" placeholder="https://yourwebsite.com">
-        <button onclick="generateQRs()">Generate</button>
-        <button onclick="window.print()" style="background: #333; color: white;">Print</button>
+        <h2>Manage Table QR Codes</h2>
+        <p>Enter your website URL below (e.g., https://cafe-havana-site.onrender.com) and click Load.</p>
+        <div style="margin-bottom: 10px;">
+            <input type="text" id="baseUrl" placeholder="https://yourwebsite.com">
+            <button onclick="generateQRs()">Load / Refresh</button>
+            <button onclick="window.print()" style="background: #333; color: white;">Print All</button>
+        </div>
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <input type="number" id="newTableNumber" placeholder="Specific Table # (Optional)" style="width: 220px;">
+            <button onclick="addTable()" style="background: #27ae60; color: white;">+ Add New Table</button>
+        </div>
     </div>
 
     <div class="grid" id="qrGrid"></div>
@@ -83,12 +89,21 @@
             document.getElementById('baseUrl').value = currentUrl;
         }
 
+        let currentPassword = '';
+
+        async function getPassword() {
+            if (currentPassword) return currentPassword;
+            const pwd = prompt("Enter Admin Password:");
+            if (pwd) currentPassword = pwd;
+            return currentPassword;
+        }
+
         async function generateQRs() {
             let baseUrl = document.getElementById('baseUrl').value.trim();
             if(!baseUrl) return alert('Please enter your website URL');
             if(baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
 
-            const password = prompt("Enter Admin Password to generate Secure QR Codes:");
+            const password = await getPassword();
             if (!password) return;
 
             try {
@@ -99,6 +114,7 @@
                 });
 
                 if (!response.ok) {
+                    currentPassword = ''; // reset on failure
                     throw new Error('Invalid Admin Password');
                 }
 
@@ -108,7 +124,9 @@
                 const grid = document.getElementById('qrGrid');
                 grid.innerHTML = '';
 
-                for(let i = 1; i <= 20; i++) {
+                const tableNumbers = Object.keys(tokens).map(Number).sort((a, b) => a - b);
+
+                tableNumbers.forEach(i => {
                     const token = tokens[i];
                     const tableUrl = `${baseUrl}/?table=${i}&token=${token}`;
                     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tableUrl)}`;
@@ -118,19 +136,69 @@
                             <img src="${qrUrl}" alt="Table ${i} QR" loading="lazy">
                             <h2>Table ${i}</h2>
                             <p>Scan to Order</p>
-                            <button class="regenerate-btn" onclick="regenerateToken(${i})" style="margin-top: 10px; background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Regenerate</button>
+                            <div style="margin-top: 10px; display: flex; gap: 5px; justify-content: center;">
+                                <button onclick="regenerateToken(${i})" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Regenerate</button>
+                                <button onclick="removeTable(${i})" style="background: #333; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Remove</button>
+                            </div>
                         </div>
                     `;
-                }
+                });
             } catch (err) {
                 alert(err.message || "Failed to fetch secure tokens.");
             }
         }
         
+        async function addTable() {
+            const password = await getPassword();
+            if (!password) return;
+            
+            const tableInput = document.getElementById('newTableNumber').value;
+            const payload = { password };
+            if (tableInput) payload.tableNumber = parseInt(tableInput, 10);
+            
+            try {
+                const response = await fetch('/api/table-tokens/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Server Error');
+                }
+                
+                const data = await response.json();
+                alert(`Added Table ${data.newTableNumber}!`);
+                document.getElementById('newTableNumber').value = '';
+                generateQRs();
+            } catch(err) {
+                alert(err.message);
+            }
+        }
+
+        async function removeTable(tableNumber) {
+            if(!confirm(`Are you sure you want to PERMANENTLY REMOVE Table ${tableNumber}?`)) return;
+            const password = await getPassword();
+            if (!password) return;
+            
+            try {
+                const response = await fetch('/api/table-tokens/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, tableNumber })
+                });
+                if (!response.ok) throw new Error('Failed to delete table');
+                
+                generateQRs();
+            } catch(err) {
+                alert(err.message);
+            }
+        }
+
         async function regenerateToken(tableNumber) {
             if(!confirm(`Are you sure you want to regenerate the QR code for Table ${tableNumber}? The old printed QR code will stop working immediately!`)) return;
             
-            const password = prompt("Enter Admin Password to confirm regeneration:");
+            const password = await getPassword();
             if (!password) return;
             
             try {
@@ -145,9 +213,7 @@
                 }
                 
                 alert(`Successfully generated new secure QR code for Table ${tableNumber}. Please re-print your codes!`);
-                // Re-render all QR codes to show the new one
-                document.getElementById('qrGrid').innerHTML = ''; // Force redraw
-                generateQRs(); // This will prompt password again, but it's fine for security, or we could just pass the cached password. Actually let's just let it be for now. Wait, I should avoid double prompting.
+                generateQRs();
             } catch (err) {
                 alert(err.message || "Failed to regenerate token.");
             }
