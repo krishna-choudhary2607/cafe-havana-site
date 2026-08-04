@@ -48,7 +48,6 @@ const Footer = () => (
           {[
             { label: 'Home',        id: 'home' },
             { label: 'Our Story',   id: 'about' },
-            { label: 'Signatures',  id: 'signatures' },
             { label: 'Menu',        id: 'menu' },
             { label: 'Reservation', id: 'reservation' },
           ].map(l => (

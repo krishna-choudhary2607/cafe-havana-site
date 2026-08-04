@@ -1,7 +1,6 @@
 import React from 'react';
 import Navbar from './components/Navbar';
 import HeroSection from './components/HeroSection';
-import Featured3DScroll from './components/Featured3DScroll';
 import About from './components/About';
 import Menu from './components/Menu';
 import Reservation from './components/Reservation';
@@ -20,7 +19,6 @@ function CafeSite() {
       
       <main>
         <HeroSection />
-        <Featured3DScroll />
         <About />
         <Menu />
         <Reservation />
