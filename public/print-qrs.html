@@ -83,31 +83,47 @@
             document.getElementById('baseUrl').value = currentUrl;
         }
 
-        function generateQRs() {
+        async function generateQRs() {
             let baseUrl = document.getElementById('baseUrl').value.trim();
             if(!baseUrl) return alert('Please enter your website URL');
             if(baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
 
-            const grid = document.getElementById('qrGrid');
-            grid.innerHTML = '';
+            const password = prompt("Enter Admin Password to generate Secure QR Codes:");
+            if (!password) return;
 
-            for(let i = 1; i <= 20; i++) {
-                const tableUrl = `${baseUrl}/?table=${i}`;
-                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tableUrl)}`;
-                
-                grid.innerHTML += `
-                    <div class="qr-card">
-                        <img src="${qrUrl}" alt="Table ${i} QR" loading="lazy">
-                        <h2>Table ${i}</h2>
-                        <p>Scan to Order</p>
-                    </div>
-                `;
+            try {
+                const response = await fetch('/api/table-tokens', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Invalid Admin Password');
+                }
+
+                const data = await response.json();
+                const tokens = data.tokens;
+
+                const grid = document.getElementById('qrGrid');
+                grid.innerHTML = '';
+
+                for(let i = 1; i <= 20; i++) {
+                    const token = tokens[i];
+                    const tableUrl = `${baseUrl}/?table=${i}&token=${token}`;
+                    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tableUrl)}`;
+                    
+                    grid.innerHTML += `
+                        <div class="qr-card">
+                            <img src="${qrUrl}" alt="Table ${i} QR" loading="lazy">
+                            <h2>Table ${i}</h2>
+                            <p>Scan to Order</p>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                alert(err.message || "Failed to fetch secure tokens.");
             }
-        }
-        
-        // Auto-generate on load if URL is detected
-        if(document.getElementById('baseUrl').value) {
-            generateQRs();
         }
     </script>
 </body>

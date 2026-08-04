@@ -3,6 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +26,13 @@ function checkDateReset() {
   }
 }
 
+// Secure Table Tokens
+const SECRET_KEY = process.env.TABLE_SECRET || 'CafeHavanaSecureSecret2026';
+
+function generateTableToken(tableNumber) {
+  return crypto.createHash('md5').update(String(tableNumber) + SECRET_KEY).digest('hex').substring(0, 8);
+}
+
 // Ensure CSV file exists with headers
 const csvFilePath = path.join(__dirname, 'orders_history.csv');
 if (!fs.existsSync(csvFilePath)) {
@@ -40,9 +48,31 @@ app.get('/api/orders', (req, res) => {
   res.json(activeOrders);
 });
 
+app.post('/api/table-tokens', (req, res) => {
+  const { password } = req.body;
+  // Hardcoded simple admin auth for QR generation
+  if (password !== 'krishna123') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  const tokens = {};
+  for(let i = 1; i <= 30; i++) {
+    tokens[i] = generateTableToken(i);
+  }
+  res.json({ success: true, tokens });
+});
+
 app.post('/api/orders', (req, res) => {
   checkDateReset();
   const order = req.body;
+  
+  // Verify Secure Table Token
+  const expectedToken = generateTableToken(order.tableNumber);
+  if (order.token !== expectedToken) {
+    return res.status(403).json({ 
+      error: 'Invalid or missing Table QR Token. You must scan the physical QR code on your table to place an order.' 
+    });
+  }
   
   // Add to active dashboard memory
   activeOrders.push(order);

@@ -7,19 +7,21 @@ import './Cart.css';
 const Cart = ({ isOpen, onClose, items, onRemove, onUpdateQuantity, clearCart }) => {
   const [searchParams] = useSearchParams();
   const tableNumber = searchParams.get('table');
+  const token = searchParams.get('token');
   const [orderSuccess, setOrderSuccess] = useState(false);
 
   const total = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
   const handlePlaceOrder = async () => {
-    if (!tableNumber) {
-      alert('Please scan a valid table QR code to place an order.');
+    if (!tableNumber || !token) {
+      alert('Invalid Table QR Code! You must scan the physical QR code on your table to place an order.');
       return;
     }
 
     const order = {
       id: Date.now().toString(),
       tableNumber,
+      token,
       items,
       total,
       date: new Date().toISOString(),
@@ -27,11 +29,17 @@ const Cart = ({ isOpen, onClose, items, onRemove, onUpdateQuantity, clearCart })
     };
 
     try {
-      await fetch('/api/orders', {
+      const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(order)
       });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || 'Failed to send order to kitchen.');
+        return;
+      }
       
       setOrderSuccess(true);
       clearCart();
@@ -42,7 +50,7 @@ const Cart = ({ isOpen, onClose, items, onRemove, onUpdateQuantity, clearCart })
       }, 3000);
     } catch (err) {
       console.error(err);
-      alert('Failed to send order to kitchen. Please try again.');
+      alert('Network error. Failed to send order to kitchen. Please try again.');
     }
   };
 
