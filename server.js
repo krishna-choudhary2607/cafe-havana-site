@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
+import axios from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,6 +14,29 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ─── SMS Helper (Fast2SMS) ────────────────────────────────────
+async function sendSMS(phone, message) {
+  const apiKey = process.env.FAST2SMS_API_KEY;
+  if (!apiKey || apiKey === 'your_fast2sms_api_key_here') {
+    console.log('[SMS] No Fast2SMS API key set. SMS skipped.');
+    return;
+  }
+  try {
+    const response = await axios.get('https://www.fast2sms.com/dev/bulkV2', {
+      params: {
+        authorization: apiKey,
+        message: message,
+        language: 'english',
+        route: 'q',
+        numbers: phone,
+      }
+    });
+    console.log('[SMS] Sent to', phone, '| Response:', response.data);
+  } catch (err) {
+    console.error('[SMS] Failed to send:', err.response ? err.response.data : err.message);
+  }
+}
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -270,14 +294,28 @@ app.post('/api/reservations', (req, res) => {
   res.status(201).json({ success: true, reservation: newReservation });
 });
 
-app.put('/api/reservations/:id', adminAuth, (req, res) => {
+app.put('/api/reservations/:id', adminAuth, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   const index = reservations.findIndex(r => r.id === id);
-  
+
   if (index !== -1) {
     reservations[index].status = status;
     saveReservations(reservations);
+
+    // Send SMS notification to the customer
+    const reservation = reservations[index];
+    const phone = reservation.phone;
+    if (phone && (status === 'approved' || status === 'rejected')) {
+      let smsText;
+      if (status === 'approved') {
+        smsText = `Hi ${reservation.name}! Your table reservation at Cafe Havana Jaipur has been APPROVED. Date: ${reservation.date}, Time: ${reservation.time}, Guests: ${reservation.guests}. Please arrive on time. See you soon! - Cafe Havana`;
+      } else {
+        smsText = `Hi ${reservation.name}, unfortunately your reservation at Cafe Havana Jaipur for ${reservation.date} at ${reservation.time} could not be accommodated. Please call us at +91 92575 65666 to reschedule. Sorry for the inconvenience. - Cafe Havana`;
+      }
+      await sendSMS(phone, smsText);
+    }
+
     res.json(reservations[index]);
   } else {
     res.status(404).json({ error: 'Reservation not found' });
