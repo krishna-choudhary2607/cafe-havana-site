@@ -433,12 +433,12 @@ const AdminPortal = () => {
               </div>
               
               <div className="divider"></div>
-              <div className="ingredients-box" style={{ background: 'transparent' }}>
-                <h4>Special Request</h4>
-                <p>{selectedReservation.request ? selectedReservation.request : <em>None provided</em>}</p>
+              <div style={{ marginTop: '20px' }}>
+                <h4 style={{ marginBottom: '10px', color: 'var(--color-primary)' }}>Special Request</h4>
+                <p style={{ color: '#333' }}>{selectedReservation.request ? selectedReservation.request : <em>None provided</em>}</p>
               </div>
               
-              <div className="divider"></div>
+              <div className="divider" style={{ marginTop: '20px' }}></div>
             </div>
 
             <div className="bill-actions">
