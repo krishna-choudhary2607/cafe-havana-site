@@ -240,67 +240,36 @@ const AdminPortal = () => {
 
       <div className="admin-main">
         {viewMode === 'orders' && selectedOrder ? (
-          // INDIVIDUAL ORDER BILL
-          <div className="bill-container">
-            <div className="bill-paper" id={`printable-bill-${selectedOrder.id}`}>
-              <div className="bill-header">
-                <h2>Cafe Havana</h2>
-                <p>Jaipur, Rajasthan</p>
-                <div className="divider"></div>
-                <div className="bill-meta">
-                  <p><strong>Table:</strong> {selectedOrder.tableNumber}</p>
-                  <p><strong>Date:</strong> {new Date(selectedOrder.date).toLocaleDateString()}</p>
-                  <p><strong>Time:</strong> {new Date(selectedOrder.date).toLocaleTimeString()}</p>
-                  <p><strong>Order ID:</strong> #{selectedOrder.id.slice(-6)}</p>
-                </div>
-                <div className="divider"></div>
+          // KITCHEN ORDER TICKET (KOT)
+          <div className="kot-container">
+            <div className="kot-paper" id={`printable-bill-${selectedOrder.id}`}>
+              <div className="kot-header">
+                <h2>Table {selectedOrder.tableNumber}</h2>
+                <span className={`status-badge ${selectedOrder.status}`}>{selectedOrder.status}</span>
               </div>
-              
-              <table className="bill-items">
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedOrder.items.map((item, idx) => (
-                    <tr key={idx}>
-                      <td>{item.name}</td>
-                      <td>{item.quantity}</td>
-                      <td>₹{(item.price * item.quantity).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
+              <div className="kot-meta">
+                <p><strong>Order ID:</strong> #{selectedOrder.id.slice(-6)}</p>
+                <p><strong>Time:</strong> {new Date(selectedOrder.date).toLocaleTimeString()}</p>
+              </div>
               <div className="divider"></div>
               
-              <div className="bill-total">
-                <p>Subtotal: <span>₹{selectedOrder.total.toFixed(2)}</span></p>
-                <p>CGST (2.5%): <span>₹{(selectedOrder.total * 0.025).toFixed(2)}</span></p>
-                <p>SGST (2.5%): <span>₹{(selectedOrder.total * 0.025).toFixed(2)}</span></p>
-                <h3 className="grand-total">Total: <span>₹{(selectedOrder.total * 1.05).toFixed(2)}</span></h3>
-              </div>
+              <ul className="kot-items">
+                {selectedOrder.items.map((item, idx) => (
+                  <li key={idx} className="kot-item">
+                    <span className="kot-qty">{item.quantity}x</span>
+                    <span className="kot-name">{item.name}</span>
+                  </li>
+                ))}
+              </ul>
 
-              {upiId && (
-                <div className="bill-qr-section">
-                  <p>Scan to Pay via UPI</p>
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`upi://pay?pa=${upiId}&pn=CafeHavana&am=${(selectedOrder.total * 1.05).toFixed(2)}`)}`} 
-                    alt="Payment QR Code" 
-                    className="qr-code"
-                  />
-                </div>
-              )}
+              <div className="divider"></div>
             </div>
 
             <div className="bill-actions">
-              <button className="btn-primary print-btn" onClick={() => window.print()}>Print Bill</button>
+              <button className="btn-primary print-btn" onClick={() => window.print()}>Print Ticket</button>
               {selectedOrder.status !== 'completed' && (
                 <button className="btn-outline complete-btn" onClick={() => markAsCompleted(selectedOrder.id)}>
-                  Mark as Paid & Completed
+                  Mark as Prepared / Done
                 </button>
               )}
             </div>
