@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
-import { Resend } from 'resend';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,29 +15,37 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ─── Email Helper (Resend HTTP API — works on Render free tier) ───────────────
+// ─── Email Helper (Brevo HTTP API — no domain needed, 300/day free) ──────────
 async function sendEmail(to, subject, html) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-  console.log('[Email] RESEND_API_KEY present:', !!apiKey, '| To:', to);
+  const apiKey = process.env.BREVO_API_KEY;
+  const fromEmail = process.env.BREVO_FROM_EMAIL || 'krishna26072006@gmail.com';
+  console.log('[Email] BREVO_API_KEY present:', !!apiKey, '| To:', to);
   if (!apiKey) {
-    console.log('[Email] No Resend API key set. Email skipped.');
+    console.log('[Email] No Brevo API key set. Email skipped.');
     return { success: false, reason: 'No API key' };
   }
-  const resend = new Resend(apiKey);
   try {
-    const { data, error } = await resend.emails.send({
-      from: `Cafe Havana Jaipur <${fromEmail}>`,
-      to,
-      subject,
-      html,
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { name: 'Cafe Havana Jaipur', email: fromEmail },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
     });
-    if (error) {
-      console.error('[Email] Failed:', JSON.stringify(error));
-      return { success: false, error };
+    const data = await response.json();
+    if (!response.ok) {
+      console.error('[Email] Failed:', JSON.stringify(data));
+      return { success: false, error: data };
     }
-    console.log('[Email] Sent to', to, '| ID:', data.id);
-    return { success: true, id: data.id };
+    console.log('[Email] Sent to', to, '| MessageId:', data.messageId);
+    return { success: true, messageId: data.messageId };
   } catch (err) {
     console.error('[Email] Exception:', err.message);
     return { success: false, error: err.message };
