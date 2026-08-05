@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,33 +15,31 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ─── Email Helper (Gmail via Nodemailer) ────────────────────────────────
+// ─── Email Helper (Resend HTTP API — works on Render free tier) ───────────────
 async function sendEmail(to, subject, html) {
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailPass = process.env.GMAIL_APP_PASSWORD;
-  console.log('[Email] GMAIL_USER present:', !!gmailUser, '| To:', to);
-  if (!gmailUser || !gmailPass) {
-    console.log('[Email] Gmail credentials not set. Email skipped.');
-    return { success: false, reason: 'No credentials' };
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  console.log('[Email] RESEND_API_KEY present:', !!apiKey, '| To:', to);
+  if (!apiKey) {
+    console.log('[Email] No Resend API key set. Email skipped.');
+    return { success: false, reason: 'No API key' };
   }
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,       // STARTTLS (not SSL)
-    family: 4,           // Force IPv4 — Render free tier blocks IPv6 outbound
-    auth: { user: gmailUser, pass: gmailPass },
-  });
+  const resend = new Resend(apiKey);
   try {
-    const info = await transporter.sendMail({
-      from: `"Cafe Havana Jaipur" <${gmailUser}>`,
+    const { data, error } = await resend.emails.send({
+      from: `Cafe Havana Jaipur <${fromEmail}>`,
       to,
       subject,
       html,
     });
-    console.log('[Email] Sent to', to, '| MessageId:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    if (error) {
+      console.error('[Email] Failed:', JSON.stringify(error));
+      return { success: false, error };
+    }
+    console.log('[Email] Sent to', to, '| ID:', data.id);
+    return { success: true, id: data.id };
   } catch (err) {
-    console.error('[Email] Failed:', err.message);
+    console.error('[Email] Exception:', err.message);
     return { success: false, error: err.message };
   }
 }
