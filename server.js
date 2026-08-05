@@ -18,9 +18,10 @@ app.use(express.json());
 // ─── SMS Helper (Fast2SMS) ────────────────────────────────────
 async function sendSMS(phone, message) {
   const apiKey = process.env.FAST2SMS_API_KEY;
+  console.log('[SMS] API Key present:', !!apiKey, '| Phone:', phone);
   if (!apiKey || apiKey === 'your_fast2sms_api_key_here') {
     console.log('[SMS] No Fast2SMS API key set. SMS skipped.');
-    return;
+    return { success: false, reason: 'No API key' };
   }
   try {
     const response = await axios.get('https://www.fast2sms.com/dev/bulkV2', {
@@ -32,9 +33,12 @@ async function sendSMS(phone, message) {
         numbers: phone,
       }
     });
-    console.log('[SMS] Sent to', phone, '| Response:', response.data);
+    console.log('[SMS] Sent to', phone, '| Response:', JSON.stringify(response.data));
+    return { success: true, data: response.data };
   } catch (err) {
-    console.error('[SMS] Failed to send:', err.response ? err.response.data : err.message);
+    const errData = err.response ? err.response.data : err.message;
+    console.error('[SMS] Failed:', JSON.stringify(errData));
+    return { success: false, error: errData };
   }
 }
 
@@ -53,6 +57,14 @@ const adminAuth = (req, res, next) => {
     res.status(401).json({ error: 'Unauthorized' });
   }
 };
+
+// Test SMS endpoint — visit /api/test-sms?phone=YOUR_NUMBER from browser (admin only)
+app.get('/api/test-sms', adminAuth, async (req, res) => {
+  const phone = req.query.phone;
+  if (!phone) return res.status(400).json({ error: 'Provide ?phone=10digitnumber' });
+  const result = await sendSMS(phone, 'Test SMS from Cafe Havana server. If you receive this, SMS is working!');
+  res.json(result);
+});
 
 // In-memory active orders (cleared daily)
 let activeOrders = [];
