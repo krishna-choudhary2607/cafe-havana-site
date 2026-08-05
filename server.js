@@ -310,7 +310,7 @@ app.get('/api/reservations', adminAuth, (req, res) => {
 });
 
 app.post('/api/reservations', (req, res) => {
-  const reservationNo = 'HAV-' + String(reservations.length + 1).padStart(4, '0');
+  const reservationNo = 'HAV-' + Math.floor(100000 + Math.random() * 900000);
   const newReservation = {
     id: crypto.randomBytes(4).toString('hex'),
     reservationNo,
