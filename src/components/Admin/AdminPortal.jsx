@@ -298,7 +298,7 @@ const AdminPortal = () => {
                 >
                   <div className="order-item-header">
                     <span className="table-badge">{resv.name}</span>
-                    <span className="time">{new Date(resv.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="time" style={{ color: 'var(--color-accent)', fontWeight: 700 }}>{resv.reservationNo || resv.id.toUpperCase()}</span>
                   </div>
                   <div className="order-item-summary">
                     {resv.date} at {resv.time} - {resv.guests} Guests

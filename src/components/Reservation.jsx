@@ -143,10 +143,14 @@ const Reservation = () => {
                     name="phone"
                     placeholder="10-digit number"
                     required
+                    maxLength={10}
                     pattern="[0-9]{10}"
                     title="Please enter a valid 10-digit phone number"
                     value={formData.phone}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData(prev => ({ ...prev, phone: val }));
+                    }}
                   />
                 </div>
               </div>
