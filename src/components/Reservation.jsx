@@ -5,7 +5,7 @@ import './Reservation.css';
 
 const Reservation = () => {
   const [formData, setFormData] = useState({
-    name: '', phone: '', date: '', time: '', guests: '2', request: ''
+    name: '', phone: '', email: '', date: '', time: '', guests: '2', request: ''
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +29,7 @@ const Reservation = () => {
         setIsSubmitted(true);
         setTimeout(() => {
           setIsSubmitted(false);
-          setFormData({ name: '', phone: '', date: '', time: '', guests: '2', request: '' });
+          setFormData({ name: '', phone: '', email: '', date: '', time: '', guests: '2', request: '' });
         }, 5000);
       }
     } catch (err) {
@@ -149,6 +149,18 @@ const Reservation = () => {
                     onChange={handleChange}
                   />
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="you@example.com"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                />
               </div>
 
               <div className="form-row-3">

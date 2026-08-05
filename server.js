@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
-import axios from 'axios';
+import nodemailer from 'nodemailer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,32 +15,45 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ─── SMS Helper (Fast2SMS) ────────────────────────────────────
-async function sendSMS(phone, message) {
-  const apiKey = process.env.FAST2SMS_API_KEY;
-  console.log('[SMS] API Key present:', !!apiKey, '| Phone:', phone);
-  if (!apiKey || apiKey === 'your_fast2sms_api_key_here') {
-    console.log('[SMS] No Fast2SMS API key set. SMS skipped.');
-    return { success: false, reason: 'No API key' };
+// ─── Email Helper (Gmail via Nodemailer) ────────────────────────────────
+async function sendEmail(to, subject, html) {
+  const gmailUser = process.env.GMAIL_USER;
+  const gmailPass = process.env.GMAIL_APP_PASSWORD;
+  console.log('[Email] GMAIL_USER present:', !!gmailUser, '| To:', to);
+  if (!gmailUser || !gmailPass) {
+    console.log('[Email] Gmail credentials not set. Email skipped.');
+    return { success: false, reason: 'No credentials' };
   }
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: gmailUser, pass: gmailPass },
+  });
   try {
-    const response = await axios.get('https://www.fast2sms.com/dev/bulkV2', {
-      params: {
-        authorization: apiKey,
-        message: message,
-        language: 'english',
-        route: 'q',
-        numbers: phone,
-      }
+    const info = await transporter.sendMail({
+      from: `"Cafe Havana Jaipur" <${gmailUser}>`,
+      to,
+      subject,
+      html,
     });
-    console.log('[SMS] Sent to', phone, '| Response:', JSON.stringify(response.data));
-    return { success: true, data: response.data };
+    console.log('[Email] Sent to', to, '| MessageId:', info.messageId);
+    return { success: true, messageId: info.messageId };
   } catch (err) {
-    const errData = err.response ? err.response.data : err.message;
-    console.error('[SMS] Failed:', JSON.stringify(errData));
-    return { success: false, error: errData };
+    console.error('[Email] Failed:', err.message);
+    return { success: false, error: err.message };
   }
 }
+
+// Test email endpoint (admin only)
+app.get('/api/test-email', adminAuth, async (req, res) => {
+  const to = req.query.email;
+  if (!to) return res.status(400).json({ error: 'Provide ?email=your@email.com' });
+  const result = await sendEmail(
+    to,
+    'Test Email from Cafe Havana',
+    '<h2>It works!</h2><p>Email notifications from Cafe Havana are set up correctly.</p>'
+  );
+  res.json(result);
+});
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -315,17 +328,58 @@ app.put('/api/reservations/:id', adminAuth, async (req, res) => {
     reservations[index].status = status;
     saveReservations(reservations);
 
-    // Send SMS notification to the customer
+    // Send email notification to the customer
     const reservation = reservations[index];
-    const phone = reservation.phone;
-    if (phone && (status === 'approved' || status === 'rejected')) {
-      let smsText;
-      if (status === 'approved') {
-        smsText = `Hi ${reservation.name}! Your table reservation at Cafe Havana Jaipur has been APPROVED. Date: ${reservation.date}, Time: ${reservation.time}, Guests: ${reservation.guests}. Please arrive on time. See you soon! - Cafe Havana`;
-      } else {
-        smsText = `Hi ${reservation.name}, unfortunately your reservation at Cafe Havana Jaipur for ${reservation.date} at ${reservation.time} could not be accommodated. Please call us at +91 92575 65666 to reschedule. Sorry for the inconvenience. - Cafe Havana`;
-      }
-      await sendSMS(phone, smsText);
+    const email = reservation.email;
+    if (email && (status === 'approved' || status === 'rejected')) {
+      const isApproved = status === 'approved';
+      const subject = isApproved
+        ? '✅ Your Reservation at Cafe Havana is Confirmed!'
+        : '❌ Reservation Update from Cafe Havana';
+
+      const html = isApproved ? `
+        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e0d5c5;border-radius:12px;overflow:hidden">
+          <div style="background:#1A1510;padding:32px;text-align:center">
+            <h1 style="color:#C9963F;font-family:Georgia,serif;margin:0">Cafe Havana</h1>
+            <p style="color:rgba(255,255,255,0.5);font-size:12px;letter-spacing:3px;margin:4px 0 0">JAIPUR</p>
+          </div>
+          <div style="padding:40px 36px;background:#FAF7F2">
+            <h2 style="color:#1A1510;font-family:Georgia,serif;margin:0 0 8px">Reservation Confirmed! 🎉</h2>
+            <p style="color:#6B5E50;margin:0 0 28px">Hi <strong>${reservation.name}</strong>, your table is booked!</p>
+            <div style="background:#fff;border:1px solid #e8ddd0;border-radius:8px;padding:24px;margin-bottom:28px">
+              <table style="width:100%;border-collapse:collapse">
+                <tr><td style="padding:8px 0;color:#6B5E50;font-size:14px">Date</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.date}</td></tr>
+                <tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Time</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.time}</td></tr>
+                <tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Guests</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.guests}</td></tr>
+                ${reservation.request ? `<tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Special Request</td><td style="padding:8px 0;color:#1A1510;text-align:right">${reservation.request}</td></tr>` : ''}
+              </table>
+            </div>
+            <p style="color:#6B5E50;font-size:14px;margin:0 0 8px">⏰ Please arrive on time. Your table is held for <strong>30 minutes</strong> from the booking time.</p>
+            <p style="color:#6B5E50;font-size:14px;margin:0">📍 NC-701, 7th Floor, Capital Highstreet Mall, Jagatpura, Jaipur</p>
+          </div>
+          <div style="background:#1A1510;padding:20px;text-align:center">
+            <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:0">Questions? Call us at +91 92575 65666</p>
+          </div>
+        </div>
+      ` : `
+        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e0d5c5;border-radius:12px;overflow:hidden">
+          <div style="background:#1A1510;padding:32px;text-align:center">
+            <h1 style="color:#C9963F;font-family:Georgia,serif;margin:0">Cafe Havana</h1>
+            <p style="color:rgba(255,255,255,0.5);font-size:12px;letter-spacing:3px;margin:4px 0 0">JAIPUR</p>
+          </div>
+          <div style="padding:40px 36px;background:#FAF7F2">
+            <h2 style="color:#1A1510;font-family:Georgia,serif;margin:0 0 8px">Reservation Update</h2>
+            <p style="color:#6B5E50;margin:0 0 20px">Hi <strong>${reservation.name}</strong>, we're sorry to inform you that we could not accommodate your reservation for <strong>${reservation.date}</strong> at <strong>${reservation.time}</strong>.</p>
+            <p style="color:#6B5E50;margin:0 0 8px">Please call us to reschedule at a time that works for you.</p>
+            <p style="color:#C9963F;font-weight:600;font-size:18px;margin:0">+91 92575 65666</p>
+          </div>
+          <div style="background:#1A1510;padding:20px;text-align:center">
+            <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:0">We look forward to hosting you soon — Cafe Havana Team</p>
+          </div>
+        </div>
+      `;
+
+      await sendEmail(email, subject, html);
     }
 
     res.json(reservations[index]);
