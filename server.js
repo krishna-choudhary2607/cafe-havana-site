@@ -310,8 +310,10 @@ app.get('/api/reservations', adminAuth, (req, res) => {
 });
 
 app.post('/api/reservations', (req, res) => {
+  const reservationNo = 'HAV-' + String(reservations.length + 1).padStart(4, '0');
   const newReservation = {
     id: crypto.randomBytes(4).toString('hex'),
+    reservationNo,
     ...req.body,
     status: 'pending', // pending, approved, rejected
     createdAt: new Date().toISOString()
@@ -350,7 +352,8 @@ app.put('/api/reservations/:id', adminAuth, async (req, res) => {
             <p style="color:#6B5E50;margin:0 0 28px">Hi <strong>${reservation.name}</strong>, your table is booked!</p>
             <div style="background:#fff;border:1px solid #e8ddd0;border-radius:8px;padding:24px;margin-bottom:28px">
               <table style="width:100%;border-collapse:collapse">
-                <tr><td style="padding:8px 0;color:#6B5E50;font-size:14px">Date</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.date}</td></tr>
+                <tr><td style="padding:8px 0;color:#6B5E50;font-size:14px">Reservation No.</td><td style="padding:8px 0;color:#C9963F;font-weight:700;text-align:right;font-size:16px">${reservation.reservationNo || reservation.id.toUpperCase()}</td></tr>
+                <tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Date</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.date}</td></tr>
                 <tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Time</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.time}</td></tr>
                 <tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Guests</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.guests}</td></tr>
                 ${reservation.request ? `<tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Special Request</td><td style="padding:8px 0;color:#1A1510;text-align:right">${reservation.request}</td></tr>` : ''}
@@ -371,7 +374,7 @@ app.put('/api/reservations/:id', adminAuth, async (req, res) => {
           </div>
           <div style="padding:40px 36px;background:#FAF7F2">
             <h2 style="color:#1A1510;font-family:Georgia,serif;margin:0 0 8px">Reservation Update</h2>
-            <p style="color:#6B5E50;margin:0 0 20px">Hi <strong>${reservation.name}</strong>, we're sorry to inform you that we could not accommodate your reservation for <strong>${reservation.date}</strong> at <strong>${reservation.time}</strong>.</p>
+            <p style="color:#6B5E50;margin:0 0 8px">Hi <strong>${reservation.name}</strong>, we're sorry to inform you that reservation <strong>${reservation.reservationNo || reservation.id.toUpperCase()}</strong> for <strong>${reservation.date}</strong> at <strong>${reservation.time}</strong> could not be accommodated.</p>
             <p style="color:#6B5E50;margin:0 0 8px">Please call us to reschedule at a time that works for you.</p>
             <p style="color:#C9963F;font-weight:600;font-size:18px;margin:0">+91 92575 65666</p>
           </div>

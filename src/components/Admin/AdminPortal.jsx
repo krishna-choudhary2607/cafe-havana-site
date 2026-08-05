@@ -425,8 +425,12 @@ const AdminPortal = () => {
                 <h2>{selectedReservation.name}</h2>
                 <span className={`status-badge ${selectedReservation.status}`}>{selectedReservation.status}</span>
               </div>
+              <div style={{ background: 'var(--color-accent)', color: '#fff', borderRadius: '8px', padding: '10px 16px', marginBottom: '16px', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.05em' }}>
+                {selectedReservation.reservationNo || '#' + selectedReservation.id.toUpperCase()}
+              </div>
               <div className="kot-meta">
                 <p><strong>Phone:</strong> {selectedReservation.phone}</p>
+                <p><strong>Email:</strong> {selectedReservation.email || '—'}</p>
                 <p><strong>Date:</strong> {selectedReservation.date}</p>
                 <p><strong>Time:</strong> {selectedReservation.time}</p>
                 <p><strong>Guests:</strong> {selectedReservation.guests}</p>
