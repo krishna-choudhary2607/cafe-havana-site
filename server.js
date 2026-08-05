@@ -43,17 +43,6 @@ async function sendEmail(to, subject, html) {
   }
 }
 
-// Test email endpoint (admin only)
-app.get('/api/test-email', adminAuth, async (req, res) => {
-  const to = req.query.email;
-  if (!to) return res.status(400).json({ error: 'Provide ?email=your@email.com' });
-  const result = await sendEmail(
-    to,
-    'Test Email from Cafe Havana',
-    '<h2>It works!</h2><p>Email notifications from Cafe Havana are set up correctly.</p>'
-  );
-  res.json(result);
-});
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -71,11 +60,15 @@ const adminAuth = (req, res, next) => {
   }
 };
 
-// Test SMS endpoint — visit /api/test-sms?phone=YOUR_NUMBER from browser (admin only)
-app.get('/api/test-sms', adminAuth, async (req, res) => {
-  const phone = req.query.phone;
-  if (!phone) return res.status(400).json({ error: 'Provide ?phone=10digitnumber' });
-  const result = await sendSMS(phone, 'Test SMS from Cafe Havana server. If you receive this, SMS is working!');
+// Test email endpoint (admin only)
+app.get('/api/test-email', adminAuth, async (req, res) => {
+  const to = req.query.email;
+  if (!to) return res.status(400).json({ error: 'Provide ?email=your@email.com' });
+  const result = await sendEmail(
+    to,
+    'Test Email from Cafe Havana',
+    '<h2>It works!</h2><p>Email notifications from Cafe Havana are set up correctly.</p>'
+  );
   res.json(result);
 });
 
