@@ -25,7 +25,10 @@ async function sendEmail(to, subject, html) {
     return { success: false, reason: 'No credentials' };
   }
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,       // STARTTLS (not SSL)
+    family: 4,           // Force IPv4 — Render free tier blocks IPv6 outbound
     auth: { user: gmailUser, pass: gmailPass },
   });
   try {
