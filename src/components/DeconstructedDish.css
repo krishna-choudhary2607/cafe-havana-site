@@ -1,0 +1,182 @@
+/* ─── Deconstructed Section ───────────────────────────────────── */
+.deconstruct-section {
+  position: relative;
+  height: 300vh; /* creates scroll room */
+  background-color: var(--color-bg-dark);
+  z-index: 10;
+}
+
+.deconstruct-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.deconstruct-header {
+  position: absolute;
+  top: 15vh;
+  text-align: center;
+  z-index: 20;
+}
+
+.deconstruct-canvas {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1000px;
+}
+
+/* ─── Layers ─────────────────────────────────────────────────── */
+.layer-wrapper {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  will-change: transform;
+}
+
+.layer-content {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Shape basics - creating an isometric 3D cylinder slice */
+.layer-shape {
+  width: 240px;
+  border-radius: 50%;
+  transform: rotateX(60deg);
+  position: absolute;
+}
+
+/* 1. Foam */
+.foam-layer { top: -60px; }
+.foam-shape {
+  height: 240px;
+  background: #fdfbf7;
+  border: 4px solid rgba(201, 150, 63, 0.2);
+  box-shadow: 0 15px 0 #e8e2d5, 0 15px 25px rgba(0,0,0,0.5);
+}
+
+/* 2. Espresso */
+.espresso-layer { top: -20px; }
+.espresso-shape {
+  height: 240px;
+  background: #2a1610;
+  border: 2px solid #1a0d0a;
+  box-shadow: 0 20px 0 #150a07, 0 20px 25px rgba(0,0,0,0.5);
+}
+
+/* 3. Milk */
+.milk-layer { top: 20px; }
+.milk-shape {
+  height: 240px;
+  background: #f5f0e6;
+  border: 2px solid #e3dbc8;
+  box-shadow: 0 40px 0 #d9d0bc, 0 40px 25px rgba(0,0,0,0.5);
+}
+
+/* 4. Base */
+.base-layer { top: 80px; }
+.base-shape {
+  height: 240px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 30px 0 rgba(255, 255, 255, 0.02), 0 30px 30px rgba(0,0,0,0.8);
+  backdrop-filter: blur(8px);
+}
+
+
+/* ─── Labels ─────────────────────────────────────────────────── */
+.layer-label {
+  position: absolute;
+  width: 200px;
+  color: var(--color-text-light);
+  font-family: var(--font-body);
+}
+
+.layer-label h4 {
+  font-family: var(--font-heading);
+  color: var(--color-accent);
+  font-size: 1.4rem;
+  margin-bottom: 4px;
+}
+
+.layer-label p {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  line-height: 1.4;
+}
+
+.label-left {
+  right: calc(50% + 180px);
+  text-align: right;
+}
+
+.label-right {
+  left: calc(50% + 180px);
+  text-align: left;
+}
+
+/* Connecting lines (optional, but looks premium) */
+.label-left::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -60px;
+  width: 40px;
+  height: 1px;
+  background: rgba(201, 150, 63, 0.4);
+}
+
+.label-right::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -60px;
+  width: 40px;
+  height: 1px;
+  background: rgba(201, 150, 63, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .layer-shape {
+    width: 160px;
+  }
+  .foam-shape, .espresso-shape, .milk-shape, .base-shape {
+    height: 160px;
+  }
+  
+  .label-left {
+    right: calc(50% + 100px);
+  }
+  
+  .label-right {
+    left: calc(50% + 100px);
+  }
+  
+  .layer-label h4 {
+    font-size: 1.1rem;
+  }
+  
+  .layer-label p {
+    font-size: 0.75rem;
+  }
+  
+  .label-left::after, .label-right::before {
+    display: none;
+  }
+}

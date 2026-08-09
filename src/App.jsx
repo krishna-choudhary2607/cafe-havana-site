@@ -2,6 +2,7 @@ import React from 'react';
 import Navbar from './components/Navbar';
 import HeroSection from './components/HeroSection';
 import About from './components/About';
+import DeconstructedDish from './components/DeconstructedDish';
 import Menu from './components/Menu';
 import Reservation from './components/Reservation';
 import Footer from './components/Footer';
@@ -22,6 +23,7 @@ function CafeSite() {
       <main>
         <HeroSection />
         <About />
+        <DeconstructedDish />
         <Menu />
         <Reservation />
       </main>
