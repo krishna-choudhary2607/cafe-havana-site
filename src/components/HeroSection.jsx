@@ -31,7 +31,7 @@ const HeroSection = () => {
       {/* 3D Spline Scene */}
       <div className="spline-container">
         <Suspense fallback={<div className="spline-loading">Loading 3D Experience...</div>}>
-          <Spline scene="https://prod.spline.design/q-c-Q-v7p0S3t3oT/scene.splinecode" />
+          <Spline scene="https://prod.spline.design/6Wq1Q7YGyM-iab9i/scene.splinecode" />
         </Suspense>
       </div>
 
