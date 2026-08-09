@@ -16,7 +16,7 @@ const scrollTo = (id) => {
 };
 
 const Footer = () => (
-  <footer className="footer">
+  <footer className="footer" id="location">
     <div className="footer-top-line" />
     <div className="container footer-inner">
       {/* Brand */}

@@ -20,9 +20,9 @@ const Navbar = ({ cartCount, onCartClick }) => {
   };
 
   const navLinks = [
-    { label: 'About',       id: 'about' },
-    { label: 'Menu',        id: 'menu' },
-    { label: 'Reservation', id: 'reservation' },
+    { label: 'Experience', id: 'about' },
+    { label: 'Menu',       id: 'menu' },
+    { label: 'Location',   id: 'location' },
   ];
 
   return (
