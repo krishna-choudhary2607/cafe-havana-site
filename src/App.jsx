@@ -34,16 +34,23 @@ function CafeSite() {
 function App() {
   return (
     <ErrorBoundary>
-      <SmoothScroll>
-        <CustomCursor />
-        <Router>
-          <Routes>
-            <Route path="/" element={<CafeSite />} />
-            <Route path="/order" element={<OrderPage />} />
-            <Route path="/admin" element={<AdminPortal />} />
-          </Routes>
-        </Router>
-      </SmoothScroll>
+      <Router>
+        <Routes>
+          <Route path="/" element={
+            <SmoothScroll>
+              <CustomCursor />
+              <CafeSite />
+            </SmoothScroll>
+          } />
+          <Route path="/order" element={
+            <SmoothScroll>
+              <CustomCursor />
+              <OrderPage />
+            </SmoothScroll>
+          } />
+          <Route path="/admin" element={<AdminPortal />} />
+        </Routes>
+      </Router>
     </ErrorBoundary>
   );
 }
