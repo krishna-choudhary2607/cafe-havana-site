@@ -12,7 +12,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AdminPortal from './components/Admin/AdminPortal';
 import OrderPage from './components/OrderPage';
 import SmoothScroll from './components/SmoothScroll';
-import CustomCursor from './components/CustomCursor';
 
 function CafeSite() {
   return (
@@ -35,7 +34,6 @@ function App() {
   return (
     <ErrorBoundary>
       <SmoothScroll>
-        <CustomCursor />
         <Router>
           <Routes>
             <Route path="/" element={<CafeSite />} />

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
+import { motion, useScroll, useTransform, useSpring, useMotionValue } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import './HeroSection.css';
 
@@ -23,22 +23,24 @@ const HeroSection = () => {
   const line2 = ['on', 'Earth'];
 
   // 3D text effect based on mouse
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
   
   useEffect(() => {
     const handleMouseMove = (e) => {
       const { innerWidth, innerHeight } = window;
       const x = (e.clientX / innerWidth - 0.5) * 2; // -1 to 1
       const y = (e.clientY / innerHeight - 0.5) * 2; // -1 to 1
-      setMousePos({ x, y });
+      mouseX.set(x);
+      mouseY.set(y);
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+  }, [mouseX, mouseY]);
 
   // Use springs for smooth interpolation
-  const rotateX = useSpring(mousePos.y * -15, { damping: 30, stiffness: 100 });
-  const rotateY = useSpring(mousePos.x * 15, { damping: 30, stiffness: 100 });
+  const rotateX = useSpring(useTransform(mouseY, [-1, 1], [15, -15]), { damping: 30, stiffness: 100 });
+  const rotateY = useSpring(useTransform(mouseX, [-1, 1], [-15, 15]), { damping: 30, stiffness: 100 });
 
   return (
     <section className="hero" id="home" ref={ref}>
