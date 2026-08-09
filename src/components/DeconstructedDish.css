@@ -1,7 +1,7 @@
 /* ─── Deconstructed Section ───────────────────────────────────── */
 .deconstruct-section {
   position: relative;
-  height: 300vh; /* creates scroll room */
+  height: 200vh; /* creates scroll room (reduced from 300vh for tighter scroll) */
   background-color: var(--color-bg-dark);
   z-index: 10;
 }
@@ -18,10 +18,10 @@
 }
 
 .deconstruct-header {
-  position: absolute;
-  top: 15vh;
+  position: relative;
   text-align: center;
   z-index: 20;
+  margin-bottom: 3rem;
 }
 
 .deconstruct-canvas {

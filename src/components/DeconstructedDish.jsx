@@ -12,26 +12,24 @@ const DeconstructedDish = () => {
   });
 
   // Animation segments:
-  // 0.0 - 0.2: Sticky starts, layers begin to separate
-  // 0.2 - 0.6: Layers are fully separated, text fades in
-  // 0.6 - 0.8: Layers stay separated
-  // 0.8 - 1.0: Layers combine back together and scroll releases
+  // 0.0 - 0.25: Sticky starts, layers begin to separate
+  // 0.25 - 0.75: Layers are fully separated
+  // 0.75 - 1.0: Layers combine back together
 
   // Layer 1: Foam (Moves UP)
-  const foamY = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, -180, -180, 0]);
-  const foamOpacity = useTransform(scrollYProgress, [0, 0.1, 0.9, 1], [1, 1, 1, 1]);
+  const foamY = useTransform(scrollYProgress, [0, 0.25, 0.75, 1], [0, -160, -160, 0]);
   
   // Layer 2: Espresso (Moves slightly UP)
-  const espressoY = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, -60, -60, 0]);
+  const espressoY = useTransform(scrollYProgress, [0, 0.25, 0.75, 1], [0, -40, -40, 0]);
   
   // Layer 3: Milk (Moves slightly DOWN)
-  const milkY = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 60, 60, 0]);
+  const milkY = useTransform(scrollYProgress, [0, 0.25, 0.75, 1], [0, 60, 60, 0]);
 
   // Layer 4: Glass Base (Moves DOWN)
-  const baseY = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 180, 180, 0]);
+  const baseY = useTransform(scrollYProgress, [0, 0.25, 0.75, 1], [0, 160, 160, 0]);
 
-  // Text fading logic (only visible when separated)
-  const textOpacity = useTransform(scrollYProgress, [0.15, 0.25, 0.75, 0.85], [0, 1, 1, 0]);
+  // Text fading logic (strictly 0 when combined, 1 when separated)
+  const textOpacity = useTransform(scrollYProgress, [0.1, 0.25, 0.75, 0.9], [0, 1, 1, 0]);
 
   return (
     <section className="deconstruct-section" ref={containerRef}>
