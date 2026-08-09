@@ -1,6 +1,5 @@
-import React, { useRef, Suspense } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import Spline from '@splinetool/react-spline';
+import React, { useRef, useState, useEffect } from 'react';
+import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import './HeroSection.css';
 
@@ -23,17 +22,28 @@ const HeroSection = () => {
   const line1 = ['A', 'Slice', 'of', 'Heaven'];
   const line2 = ['on', 'Earth'];
 
+  // 3D text effect based on mouse
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      const { innerWidth, innerHeight } = window;
+      const x = (e.clientX / innerWidth - 0.5) * 2; // -1 to 1
+      const y = (e.clientY / innerHeight - 0.5) * 2; // -1 to 1
+      setMousePos({ x, y });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // Use springs for smooth interpolation
+  const rotateX = useSpring(mousePos.y * -15, { damping: 30, stiffness: 100 });
+  const rotateY = useSpring(mousePos.x * 15, { damping: 30, stiffness: 100 });
+
   return (
     <section className="hero" id="home" ref={ref}>
-      {/* Parallax background fallback */}
+      {/* Parallax background */}
       <motion.div className="hero-bg" style={{ y: bgY }} />
-
-      {/* 3D Spline Scene */}
-      <div className="spline-container">
-        <Suspense fallback={<div className="spline-loading">Loading 3D Experience...</div>}>
-          <Spline scene="https://prod.spline.design/6Wq1Q7YGyM-iab9i/scene.splinecode" />
-        </Suspense>
-      </div>
 
       {/* Gradient overlays */}
       <div className="hero-overlay-top" />
@@ -53,8 +63,16 @@ const HeroSection = () => {
           Jaipur's Bohemian Rooftop Café
         </motion.span>
 
-        <h1 className="hero-title">
-          <span className="hero-line">
+        <motion.h1 
+          className="hero-title"
+          style={{ 
+            rotateX, 
+            rotateY,
+            perspective: 1000,
+            transformStyle: "preserve-3d" 
+          }}
+        >
+          <span className="hero-line" style={{ transform: "translateZ(40px)" }}>
             {line1.map((word, i) => (
               <span key={i} className="word-mask">
                 <motion.span
@@ -69,7 +87,7 @@ const HeroSection = () => {
               </span>
             ))}
           </span>
-          <span className="hero-line italic-line">
+          <span className="hero-line italic-line" style={{ transform: "translateZ(80px)" }}>
             {line2.map((word, i) => (
               <span key={i} className="word-mask">
                 <motion.span
@@ -84,7 +102,7 @@ const HeroSection = () => {
               </span>
             ))}
           </span>
-        </h1>
+        </motion.h1>
 
         <motion.p
           className="hero-desc"

@@ -24,27 +24,6 @@
   will-change: transform;
 }
 
-/* 3D Spline Scene */
-.spline-container {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 2; /* above bg, below content */
-}
-
-.spline-loading {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: var(--color-accent);
-  font-family: var(--font-body);
-  letter-spacing: 0.1em;
-  font-size: 0.9rem;
-  z-index: 1;
-}
-
 /* Top dark vignette */
 .hero-overlay-top {
   position: absolute;
