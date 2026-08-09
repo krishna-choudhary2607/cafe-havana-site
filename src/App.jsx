@@ -11,6 +11,8 @@ import './App.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AdminPortal from './components/Admin/AdminPortal';
 import OrderPage from './components/OrderPage';
+import SmoothScroll from './components/SmoothScroll';
+import CustomCursor from './components/CustomCursor';
 
 function CafeSite() {
   return (
@@ -32,13 +34,16 @@ function CafeSite() {
 function App() {
   return (
     <ErrorBoundary>
-      <Router>
-        <Routes>
-          <Route path="/" element={<CafeSite />} />
-          <Route path="/order" element={<OrderPage />} />
-          <Route path="/admin" element={<AdminPortal />} />
-        </Routes>
-      </Router>
+      <SmoothScroll>
+        <CustomCursor />
+        <Router>
+          <Routes>
+            <Route path="/" element={<CafeSite />} />
+            <Route path="/order" element={<OrderPage />} />
+            <Route path="/admin" element={<AdminPortal />} />
+          </Routes>
+        </Router>
+      </SmoothScroll>
     </ErrorBoundary>
   );
 }

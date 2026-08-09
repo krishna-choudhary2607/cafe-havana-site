@@ -80,7 +80,8 @@ const Menu = () => {
                 custom={index}
                 variants={cardVariants}
                 initial="hidden"
-                animate="visible"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-40px' }}
                 exit="exit"
                 className="menu-card"
               >

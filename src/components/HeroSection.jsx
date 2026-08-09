@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, Suspense } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import Spline from '@splinetool/react-spline';
 import { ArrowDown } from 'lucide-react';
 import './HeroSection.css';
 
@@ -24,8 +25,15 @@ const HeroSection = () => {
 
   return (
     <section className="hero" id="home" ref={ref}>
-      {/* Parallax background */}
+      {/* Parallax background fallback */}
       <motion.div className="hero-bg" style={{ y: bgY }} />
+
+      {/* 3D Spline Scene */}
+      <div className="spline-container">
+        <Suspense fallback={<div className="spline-loading">Loading 3D Experience...</div>}>
+          <Spline scene="https://prod.spline.design/q-c-Q-v7p0S3t3oT/scene.splinecode" />
+        </Suspense>
+      </div>
 
       {/* Gradient overlays */}
       <div className="hero-overlay-top" />
