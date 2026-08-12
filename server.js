@@ -6,7 +6,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
-
+import db from './db.js';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +15,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// In-memory sessions store
+const activeSessions = new Map(); // token -> { username, role }
 
 // ─── Email Helper (Brevo HTTP API — no domain needed, 300/day free) ──────────
 async function sendEmail(to, subject, html) {
@@ -52,21 +56,39 @@ async function sendEmail(to, subject, html) {
   }
 }
 
-
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per `window`
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: { error: 'Too many requests, please try again later.' }
 });
 
+// Authentication Middlewares
 const adminAuth = (req, res, next) => {
-  const token = (req.headers.authorization && req.headers.authorization.split(' ')[1]) || req.body.password;
-  const adminPwd = process.env.ADMIN_PASSWORD || 'krishna123';
-  if (token === adminPwd) {
+  const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
+  const session = activeSessions.get(token);
+  if (session) {
+    req.user = session;
     next();
   } else {
-    res.status(401).json({ error: 'Unauthorized' });
+    // Fallback: Check if password match master admin pwd directly (for backwards compatibility if any frontend route misses session)
+    const adminPwd = process.env.ADMIN_PASSWORD || 'krishna123';
+    if (token === adminPwd) {
+      req.user = { username: 'admin', role: 'admin' };
+      next();
+    } else {
+      res.status(401).json({ error: 'Unauthorized' });
+    }
   }
+};
+
+const superAdminAuth = (req, res, next) => {
+  adminAuth(req, res, () => {
+    if (req.user && req.user.role === 'admin') {
+      next();
+    } else {
+      res.status(403).json({ error: 'Forbidden: Requires Admin privileges' });
+    }
+  });
 };
 
 // Test email endpoint (admin only)
@@ -81,24 +103,9 @@ app.get('/api/test-email', adminAuth, async (req, res) => {
   res.json(result);
 });
 
-// In-memory active orders (cleared daily)
-let activeOrders = [];
-let currentDateString = new Date().toDateString();
-
-// Helper to check and reset orders if the day changes
-function checkDateReset() {
-  const todayString = new Date().toDateString();
-  if (todayString !== currentDateString) {
-    activeOrders = []; // Clear the dashboard
-    currentDateString = todayString;
-    console.log(`[System] Date changed to ${todayString}. Cleared active orders dashboard.`);
-  }
-}
-
 // Dynamic Table Tokens Storage
 const tokensFilePath = path.join(__dirname, 'table_tokens.json');
 
-// Initialize or load tokens
 function loadTableTokens() {
   if (fs.existsSync(tokensFilePath)) {
     try {
@@ -107,66 +114,115 @@ function loadTableTokens() {
       console.error('Error reading tokens file, resetting to default', err);
     }
   }
-  // Generate default random tokens for 30 tables
   const initialTokens = {};
   for (let i = 1; i <= 30; i++) {
     initialTokens[i] = crypto.randomBytes(4).toString('hex');
   }
-  saveTableTokens(initialTokens);
+  fs.writeFileSync(tokensFilePath, JSON.stringify(initialTokens, null, 2));
   return initialTokens;
-}
-
-function saveTableTokens(tokens) {
-  fs.writeFileSync(tokensFilePath, JSON.stringify(tokens, null, 2));
 }
 
 let tableTokens = loadTableTokens();
 
-// Reservations Storage
-const reservationsFilePath = path.join(__dirname, 'reservations.json');
-
-function loadReservations() {
-  if (fs.existsSync(reservationsFilePath)) {
-    try {
-      return JSON.parse(fs.readFileSync(reservationsFilePath, 'utf8'));
-    } catch (err) {
-      console.error('Error reading reservations file, resetting to empty', err);
-    }
-  }
-  const initialReservations = [];
-  saveReservations(initialReservations);
-  return initialReservations;
-}
-
-function saveReservations(reservations) {
-  fs.writeFileSync(reservationsFilePath, JSON.stringify(reservations, null, 2));
-}
-
-let reservations = loadReservations();
-
-// Ensure CSV file exists with headers
+// Ensure CSV file exists for backup history
 const csvFilePath = path.join(__dirname, 'orders_history.csv');
 if (!fs.existsSync(csvFilePath)) {
   fs.writeFileSync(csvFilePath, 'Order ID,Date,Time,Table,Items,Total,Status\n');
 }
-
-// Helper to safely format CSV cells
 const formatCSV = (str) => `"${String(str).replace(/"/g, '""')}"`;
 
 // Admin Auth endpoints
-app.post('/api/admin/login', (req, res) => {
-  const { password } = req.body;
-  const adminPwd = process.env.ADMIN_PASSWORD || 'krishna123';
-  if (password === adminPwd) {
-    res.json({ success: true, token: adminPwd });
-  } else {
-    res.status(401).json({ error: 'Invalid credentials' });
+app.post('/api/admin/login', async (req, res) => {
+  const { username, password } = req.body;
+  
+  // Backwards compatibility: If no username is provided, default to master 'admin'
+  const targetUsername = username || 'admin';
+
+  try {
+    const user = await db.get('SELECT * FROM users WHERE username = ?', [targetUsername]);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (isMatch) {
+      const token = crypto.randomBytes(16).toString('hex');
+      activeSessions.set(token, { username: user.username, role: user.role });
+      res.json({ success: true, token, role: user.role, username: user.username });
+    } else {
+      res.status(401).json({ error: 'Invalid credentials' });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Staff Management APIs (Super Admin Only)
+app.get('/api/admin/users', superAdminAuth, async (req, res) => {
+  try {
+    const users = await db.query('SELECT id, username, role FROM users');
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/users', superAdminAuth, async (req, res) => {
+  const { username, password, role } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password required' });
+  }
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await db.run(
+      'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+      [username, hashedPassword, role || 'staff']
+    );
+    res.status(201).json({ success: true });
+  } catch (err) {
+    if (err.message.includes('UNIQUE')) {
+      res.status(400).json({ error: 'Username already exists' });
+    } else {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
+app.delete('/api/admin/users/:username', superAdminAuth, async (req, res) => {
+  const { username } = req.params;
+  if (username === 'admin') {
+    return res.status(400).json({ error: 'Cannot delete master admin' });
+  }
+  try {
+    await db.run('DELETE FROM users WHERE username = ?', [username]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Dashboard Stats endpoint (Admin & Staff)
+app.get('/api/admin/stats', adminAuth, async (req, res) => {
+  try {
+    const orderCountRow = await db.get('SELECT COUNT(*) as count FROM orders');
+    const pendingCountRow = await db.get('SELECT COUNT(*) as count FROM orders WHERE status != "completed"');
+    const totalRevenueRow = await db.get('SELECT SUM(total) as total FROM orders');
+    const reservationCountRow = await db.get('SELECT COUNT(*) as count FROM reservations');
+
+    res.json({
+      totalOrders: orderCountRow.count,
+      pendingOrders: pendingCountRow.count,
+      totalRevenue: totalRevenueRow.total || 0,
+      totalReservations: reservationCountRow.count
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 // Config endpoints
 const configFilePath = path.join(__dirname, 'cafe_config.json');
-
 function loadConfig() {
   if (fs.existsSync(configFilePath)) {
     try { return JSON.parse(fs.readFileSync(configFilePath, 'utf8')); } catch (e) {}
@@ -187,10 +243,19 @@ app.put('/api/config', adminAuth, (req, res) => {
   res.json(config);
 });
 
-// API Routes
-app.get('/api/orders', adminAuth, (req, res) => {
-  checkDateReset();
-  res.json(activeOrders);
+// API Routes (Orders)
+app.get('/api/orders', adminAuth, async (req, res) => {
+  try {
+    // Return all orders from SQL database
+    const orders = await db.query('SELECT * FROM orders');
+    const parsedOrders = orders.map(o => ({
+      ...o,
+      items: JSON.parse(o.items)
+    }));
+    res.json(parsedOrders);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/table-tokens', adminAuth, (req, res) => {
@@ -203,7 +268,7 @@ app.post('/api/table-tokens/regenerate', adminAuth, (req, res) => {
     return res.status(400).json({ error: 'Invalid table number' });
   }
   tableTokens[tableNumber] = crypto.randomBytes(4).toString('hex');
-  saveTableTokens(tableTokens);
+  fs.writeFileSync(tokensFilePath, JSON.stringify(tableTokens, null, 2));
   res.json({ success: true, tokens: tableTokens });
 });
 
@@ -217,7 +282,7 @@ app.post('/api/table-tokens/add', adminAuth, (req, res) => {
     return res.status(400).json({ error: 'Table already exists' });
   }
   tableTokens[tableNumber] = crypto.randomBytes(4).toString('hex');
-  saveTableTokens(tableTokens);
+  fs.writeFileSync(tokensFilePath, JSON.stringify(tableTokens, null, 2));
   res.json({ success: true, tokens: tableTokens, newTableNumber: tableNumber });
 });
 
@@ -227,12 +292,11 @@ app.post('/api/table-tokens/delete', adminAuth, (req, res) => {
     return res.status(400).json({ error: 'Invalid table number' });
   }
   delete tableTokens[tableNumber];
-  saveTableTokens(tableTokens);
+  fs.writeFileSync(tokensFilePath, JSON.stringify(tableTokens, null, 2));
   res.json({ success: true, tokens: tableTokens });
 });
 
-app.post('/api/orders', (req, res) => {
-  checkDateReset();
+app.post('/api/orders', async (req, res) => {
   const order = req.body;
   
   // Verify Secure Table Token
@@ -243,153 +307,184 @@ app.post('/api/orders', (req, res) => {
     });
   }
   
-  // Add to active dashboard memory
-  activeOrders.push(order);
-  
-  // Append to Excel-compatible CSV file permanently
-  const itemsString = order.items.map(i => `${i.quantity}x ${i.name}`).join('; ');
-  const dateObj = new Date(order.date);
-  const csvRow = [
-    order.id,
-    dateObj.toLocaleDateString(),
-    dateObj.toLocaleTimeString(),
-    order.tableNumber,
-    itemsString,
-    order.total,
-    order.status
-  ].map(formatCSV).join(',') + '\n';
-  
-  fs.appendFileSync(csvFilePath, csvRow);
+  try {
+    // Insert into SQL database
+    await db.run(
+      'INSERT INTO orders (id, tableNumber, total, status, items, date) VALUES (?, ?, ?, ?, ?, ?)',
+      [order.id, order.tableNumber, order.total, order.status || 'pending', JSON.stringify(order.items), order.date]
+    );
 
-  res.status(201).json({ success: true, order });
-});
+    // Backup: Append to Excel-compatible CSV file permanently
+    const itemsString = order.items.map(i => `${i.quantity}x ${i.name}`).join('; ');
+    const dateObj = new Date(order.date);
+    const csvRow = [
+      order.id,
+      dateObj.toLocaleDateString(),
+      dateObj.toLocaleTimeString(),
+      order.tableNumber,
+      itemsString,
+      order.total,
+      order.status || 'pending'
+    ].map(formatCSV).join(',') + '\n';
+    fs.appendFileSync(csvFilePath, csvRow);
 
-app.put('/api/orders/:id', adminAuth, (req, res) => {
-  checkDateReset();
-  const { id } = req.params;
-  const { status } = req.body;
-  
-  const orderIndex = activeOrders.findIndex(o => o.id === id);
-  if (orderIndex !== -1) {
-    activeOrders[orderIndex].status = status;
-    res.json(activeOrders[orderIndex]);
-  } else {
-    res.status(404).json({ error: 'Order not found' });
+    res.status(201).json({ success: true, order });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.put('/api/orders/table/:tableNumber', adminAuth, (req, res) => {
-  checkDateReset();
+app.put('/api/orders/:id', adminAuth, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  
+  try {
+    await db.run('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
+    const updated = await db.get('SELECT * FROM orders WHERE id = ?', [id]);
+    if (updated) {
+      updated.items = JSON.parse(updated.items);
+      res.json(updated);
+    } else {
+      res.status(404).json({ error: 'Order not found' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/orders/table/:tableNumber', adminAuth, async (req, res) => {
   const { tableNumber } = req.params;
   const { status } = req.body;
   
-  let updatedCount = 0;
-  
-  // Mark all active orders for this table as completed
-  activeOrders = activeOrders.map(order => {
-    if (order.tableNumber.toString() === tableNumber.toString() && order.status !== 'completed') {
-      updatedCount++;
-      return { ...order, status: status || 'completed' };
+  try {
+    const result = await db.run(
+      'UPDATE orders SET status = ? WHERE tableNumber = ? AND status != "completed"',
+      [status || 'completed', tableNumber]
+    );
+    if (result.changes > 0) {
+      res.json({ success: true, message: `Updated ${result.changes} orders for table ${tableNumber}` });
+    } else {
+      res.status(404).json({ error: 'No active orders found for this table' });
     }
-    return order;
-  });
-  
-  if (updatedCount > 0) {
-    res.json({ success: true, message: `Updated ${updatedCount} orders for table ${tableNumber}` });
-  } else {
-    res.status(404).json({ error: 'No active orders found for this table' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 // Reservation Routes
-app.get('/api/reservations', adminAuth, (req, res) => {
-  // Only return today's and future reservations to prevent UI bloat
-  const todayStr = new Date().toISOString().split('T')[0];
-  const activeRes = reservations.filter(r => r.date >= todayStr);
-  res.json(activeRes);
+app.get('/api/reservations', adminAuth, async (req, res) => {
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const reservations = await db.query('SELECT * FROM reservations WHERE date >= ?', [todayStr]);
+    res.json(reservations);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.post('/api/reservations', (req, res) => {
+app.post('/api/reservations', async (req, res) => {
   const reservationNo = 'HAV-' + Math.floor(100000 + Math.random() * 900000);
   const newReservation = {
     id: crypto.randomBytes(4).toString('hex'),
     reservationNo,
     ...req.body,
-    status: 'pending', // pending, approved, rejected
+    status: 'pending',
     createdAt: new Date().toISOString()
   };
-  reservations.push(newReservation);
-  saveReservations(reservations);
-  res.status(201).json({ success: true, reservation: newReservation });
+
+  try {
+    await db.run(
+      `INSERT INTO reservations 
+       (id, reservationNo, name, phone, email, date, time, guests, request, status, createdAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newReservation.id,
+        newReservation.reservationNo,
+        newReservation.name,
+        newReservation.phone,
+        newReservation.email,
+        newReservation.date,
+        newReservation.time,
+        newReservation.guests,
+        newReservation.request,
+        newReservation.status,
+        newReservation.createdAt
+      ]
+    );
+    res.status(201).json({ success: true, reservation: newReservation });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.put('/api/reservations/:id', adminAuth, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
-  const index = reservations.findIndex(r => r.id === id);
 
-  if (index !== -1) {
-    reservations[index].status = status;
-    saveReservations(reservations);
+  try {
+    await db.run('UPDATE reservations SET status = ? WHERE id = ?', [status, id]);
+    const reservation = await db.get('SELECT * FROM reservations WHERE id = ?', [id]);
 
-    // Send email notification to the customer
-    const reservation = reservations[index];
-    const email = reservation.email;
-    if (email && (status === 'approved' || status === 'rejected')) {
-      const isApproved = status === 'approved';
-      const subject = isApproved
-        ? '✅ Your Reservation at Cafe Havana is Confirmed!'
-        : '❌ Reservation Update from Cafe Havana';
+    if (reservation) {
+      // Send email notification to the customer
+      const email = reservation.email;
+      if (email && (status === 'approved' || status === 'rejected')) {
+        const isApproved = status === 'approved';
+        const subject = isApproved
+          ? '✅ Your Reservation at Cafe Havana is Confirmed!'
+          : '❌ Reservation Update from Cafe Havana';
 
-      const html = isApproved ? `
-        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e0d5c5;border-radius:12px;overflow:hidden">
-          <div style="background:#1A1510;padding:32px;text-align:center">
-            <h1 style="color:#C9963F;font-family:Georgia,serif;margin:0">Cafe Havana</h1>
-            <p style="color:rgba(255,255,255,0.5);font-size:12px;letter-spacing:3px;margin:4px 0 0">JAIPUR</p>
-          </div>
-          <div style="padding:40px 36px;background:#FAF7F2">
-            <h2 style="color:#1A1510;font-family:Georgia,serif;margin:0 0 8px">Reservation Confirmed! 🎉</h2>
-            <p style="color:#6B5E50;margin:0 0 28px">Hi <strong>${reservation.name}</strong>, your table is booked!</p>
-            <div style="background:#fff;border:1px solid #e8ddd0;border-radius:8px;padding:24px;margin-bottom:28px">
-              <table style="width:100%;border-collapse:collapse">
-                <tr><td style="padding:8px 0;color:#6B5E50;font-size:14px">Reservation No.</td><td style="padding:8px 0;color:#C9963F;font-weight:700;text-align:right;font-size:16px">${reservation.reservationNo || reservation.id.toUpperCase()}</td></tr>
-                <tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Date</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.date}</td></tr>
-                <tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Time</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.time}</td></tr>
-                <tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Guests</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.guests}</td></tr>
-                ${reservation.request ? `<tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Special Request</td><td style="padding:8px 0;color:#1A1510;text-align:right">${reservation.request}</td></tr>` : ''}
-              </table>
+        const html = isApproved ? `
+          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e0d5c5;border-radius:12px;overflow:hidden">
+            <div style="background:#1A1510;padding:32px;text-align:center">
+              <h1 style="color:#C9963F;font-family:Georgia,serif;margin:0">Cafe Havana</h1>
+              <p style="color:rgba(255,255,255,0.5);font-size:12px;letter-spacing:3px;margin:4px 0 0">JAIPUR</p>
             </div>
-            <p style="color:#6B5E50;font-size:14px;margin:0 0 8px">⏰ Please arrive on time. Your table is held for <strong>30 minutes</strong> from the booking time.</p>
-            <p style="color:#6B5E50;font-size:14px;margin:0">📍 NC-701, 7th Floor, Capital Highstreet Mall, Jagatpura, Jaipur</p>
+            <div style="padding:40px 36px;background:#FAF7F2">
+              <h2 style="color:#1A1510;font-family:Georgia,serif;margin:0 0 8px">Reservation Confirmed! 🎉</h2>
+              <p style="color:#6B5E50;margin:0 0 28px">Hi <strong>${reservation.name}</strong>, your table is booked!</p>
+              <div style="background:#fff;border:1px solid #e8ddd0;border-radius:8px;padding:24px;margin-bottom:28px">
+                <table style="width:100%;border-collapse:collapse">
+                  <tr><td style="padding:8px 0;color:#6B5E50;font-size:14px">Reservation No.</td><td style="padding:8px 0;color:#C9963F;font-weight:700;text-align:right;font-size:16px">${reservation.reservationNo}</td></tr>
+                  <tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Date</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.date}</td></tr>
+                  <tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Time</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.time}</td></tr>
+                  <tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Guests</td><td style="padding:8px 0;color:#1A1510;font-weight:600;text-align:right">${reservation.guests}</td></tr>
+                  ${reservation.request ? `<tr style="border-top:1px solid #f0e8de"><td style="padding:8px 0;color:#6B5E50;font-size:14px">Special Request</td><td style="padding:8px 0;color:#1A1510;text-align:right">${reservation.request}</td></tr>` : ''}
+                </table>
+              </div>
+              <p style="color:#6B5E50;font-size:14px;margin:0 0 8px">⏰ Please arrive on time. Your table is held for <strong>30 minutes</strong> from the booking time.</p>
+              <p style="color:#6B5E50;font-size:14px;margin:0">📍 NC-701, 7th Floor, Capital Highstreet Mall, Jagatpura, Jaipur</p>
+            </div>
+            <div style="background:#1A1510;padding:20px;text-align:center">
+              <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:0">Questions? Call us at +91 92575 65666</p>
+            </div>
           </div>
-          <div style="background:#1A1510;padding:20px;text-align:center">
-            <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:0">Questions? Call us at +91 92575 65666</p>
+        ` : `
+          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e0d5c5;border-radius:12px;overflow:hidden">
+            <div style="background:#1A1510;padding:32px;text-align:center">
+              <h1 style="color:#C9963F;font-family:Georgia,serif;margin:0">Cafe Havana</h1>
+              <p style="color:rgba(255,255,255,0.5);font-size:12px;letter-spacing:3px;margin:4px 0 0">JAIPUR</p>
+            </div>
+            <div style="padding:40px 36px;background:#FAF7F2">
+              <h2 style="color:#1A1510;font-family:Georgia,serif;margin:0 0 8px">Reservation Update</h2>
+              <p style="color:#6B5E50;margin:0 0 8px">Hi <strong>${reservation.name}</strong>, we're sorry to inform you that reservation <strong>${reservation.reservationNo}</strong> for <strong>${reservation.date}</strong> at <strong>${reservation.time}</strong> could not be accommodated.</p>
+              <p style="color:#6B5E50;margin:0 0 8px">Please call us to reschedule at a time that works for you.</p>
+              <p style="color:#C9963F;font-weight:600;font-size:18px;margin:0">+91 92575 65666</p>
+            </div>
+            <div style="background:#1A1510;padding:20px;text-align:center">
+              <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:0">We look forward to hosting you soon — Cafe Havana Team</p>
+            </div>
           </div>
-        </div>
-      ` : `
-        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e0d5c5;border-radius:12px;overflow:hidden">
-          <div style="background:#1A1510;padding:32px;text-align:center">
-            <h1 style="color:#C9963F;font-family:Georgia,serif;margin:0">Cafe Havana</h1>
-            <p style="color:rgba(255,255,255,0.5);font-size:12px;letter-spacing:3px;margin:4px 0 0">JAIPUR</p>
-          </div>
-          <div style="padding:40px 36px;background:#FAF7F2">
-            <h2 style="color:#1A1510;font-family:Georgia,serif;margin:0 0 8px">Reservation Update</h2>
-            <p style="color:#6B5E50;margin:0 0 8px">Hi <strong>${reservation.name}</strong>, we're sorry to inform you that reservation <strong>${reservation.reservationNo || reservation.id.toUpperCase()}</strong> for <strong>${reservation.date}</strong> at <strong>${reservation.time}</strong> could not be accommodated.</p>
-            <p style="color:#6B5E50;margin:0 0 8px">Please call us to reschedule at a time that works for you.</p>
-            <p style="color:#C9963F;font-weight:600;font-size:18px;margin:0">+91 92575 65666</p>
-          </div>
-          <div style="background:#1A1510;padding:20px;text-align:center">
-            <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:0">We look forward to hosting you soon — Cafe Havana Team</p>
-          </div>
-        </div>
-      `;
+        `;
 
-      await sendEmail(email, subject, html);
+        await sendEmail(email, subject, html);
+      }
+      res.json(reservation);
+    } else {
+      res.status(404).json({ error: 'Reservation not found' });
     }
-
-    res.json(reservations[index]);
-  } else {
-    res.status(404).json({ error: 'Reservation not found' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -401,7 +496,12 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
+// Start Database & Listen
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+db.initDatabase().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}).catch(err => {
+  console.error('Failed to initialize database:', err);
 });

@@ -11,23 +11,55 @@ const AdminPortal = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedTable, setSelectedTable] = useState(null);
   const [selectedReservation, setSelectedReservation] = useState(null);
-  const [viewMode, setViewMode] = useState('orders'); // 'orders' | 'tables' | 'reservations'
+  const [viewMode, setViewMode] = useState('orders'); // 'orders' | 'tables' | 'reservations' | 'staff'
   
   // Real payment UPI ID configuration
   const [upiId, setUpiId] = useState('');
   const [isEditingUpi, setIsEditingUpi] = useState(false);
   const [authToken, setAuthToken] = useState('');
 
+  // User management and stats state
+  const [userRole, setUserRole] = useState('');
+  const [loggedInUser, setLoggedInUser] = useState('');
+  const [stats, setStats] = useState({ totalOrders: 0, pendingOrders: 0, totalRevenue: 0, totalReservations: 0 });
+  const [staffList, setStaffList] = useState([]);
+  const [newStaffUser, setNewStaffUser] = useState('');
+  const [newStaffPass, setNewStaffPass] = useState('');
+  const [newStaffRole, setNewStaffRole] = useState('staff');
+
   const loadData = async () => {
     try {
       const headers = { 'Authorization': `Bearer ${authToken}` };
-      const resOrders = await fetch('/api/orders', { headers });
-      const savedOrders = await resOrders.json();
-      setOrders(savedOrders.reverse()); // newest first
       
+      // Fetch Orders
+      const resOrders = await fetch('/api/orders', { headers });
+      if (resOrders.ok) {
+        const savedOrders = await resOrders.json();
+        setOrders(savedOrders.reverse()); // newest first
+      }
+      
+      // Fetch Reservations
       const resResv = await fetch('/api/reservations', { headers });
-      const savedResv = await resResv.json();
-      setReservations(savedResv.reverse());
+      if (resResv.ok) {
+        const savedResv = await resResv.json();
+        setReservations(savedResv.reverse());
+      }
+
+      // Fetch Stats
+      const resStats = await fetch('/api/admin/stats', { headers });
+      if (resStats.ok) {
+        const statsData = await resStats.json();
+        setStats(statsData);
+      }
+
+      // Fetch Staff List if admin
+      if (userRole === 'admin') {
+        const resStaff = await fetch('/api/admin/users', { headers });
+        if (resStaff.ok) {
+          const staff = await resStaff.json();
+          setStaffList(staff);
+        }
+      }
     } catch (err) {
       console.error(err);
     }
@@ -39,7 +71,7 @@ const AdminPortal = () => {
       const interval = setInterval(loadData, 5000); // refresh every 5s
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userRole, authToken]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -52,7 +84,10 @@ const AdminPortal = () => {
       if (res.ok) {
         const data = await res.json();
         setAuthToken(data.token);
+        setUserRole(data.role);
+        setLoggedInUser(data.username);
         setIsAuthenticated(true);
+        
         // Fetch config
         const confRes = await fetch('/api/config');
         if (confRes.ok) {
@@ -80,6 +115,50 @@ const AdminPortal = () => {
       }
     } catch (err) {
       console.error('Failed to save UPI ID', err);
+    }
+  };
+
+  const handleAddStaff = async (e) => {
+    e.preventDefault();
+    if (!newStaffUser || !newStaffPass) return alert('Fill in all fields');
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ username: newStaffUser, password: newStaffPass, role: newStaffRole })
+      });
+      if (res.ok) {
+        alert('Staff account created!');
+        setNewStaffUser('');
+        setNewStaffPass('');
+        loadData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to create staff account');
+      }
+    } catch (err) {
+      alert('Network error');
+    }
+  };
+
+  const handleDeleteStaff = async (staffUsername) => {
+    if (!window.confirm(`Are you sure you want to delete ${staffUsername}?`)) return;
+    try {
+      const res = await fetch(`/api/admin/users/${staffUsername}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      if (res.ok) {
+        alert('Staff account deleted');
+        loadData();
+      } else {
+        alert('Failed to delete staff account');
+      }
+    } catch (err) {
+      alert('Network error');
     }
   };
 
@@ -171,7 +250,7 @@ const AdminPortal = () => {
     return (
       <div className="admin-login-wrapper">
         <form className="admin-login-form" onSubmit={handleLogin}>
-          <h2>Admin Portal</h2>
+          <h2>Cafe Havana Admin</h2>
           <input 
             type="text" 
             placeholder="Username" 
@@ -195,7 +274,11 @@ const AdminPortal = () => {
       <div className="admin-sidebar">
         <div className="admin-header">
           <h2>Cafe Havana</h2>
-          <p>Admin Dashboard</p>
+          <p>Logged in as: <strong>{loggedInUser}</strong> ({userRole})</p>
+          <div className="stats-mini-panel" style={{ marginTop: '15px', background: '#222', padding: '10px', borderRadius: '6px' }}>
+            <span style={{ fontSize: '0.8rem', color: '#888' }}>Total Orders Processed:</span>
+            <div style={{ fontSize: '1.4rem', color: 'var(--color-accent)', fontWeight: 'bold' }}>{stats.totalOrders}</div>
+          </div>
           <button 
             className="btn-outline" 
             style={{ marginTop: '10px', width: '100%', fontSize: '0.8rem' }}
@@ -210,13 +293,13 @@ const AdminPortal = () => {
             className={`toggle-btn ${viewMode === 'orders' ? 'active' : ''}`}
             onClick={() => { setViewMode('orders'); setSelectedTable(null); setSelectedReservation(null); }}
           >
-            All Orders
+            Orders
           </button>
           <button 
             className={`toggle-btn ${viewMode === 'tables' ? 'active' : ''}`}
             onClick={() => { setViewMode('tables'); setSelectedOrder(null); setSelectedReservation(null); }}
           >
-            Table Bills
+            Tables
           </button>
           <button 
             className={`toggle-btn ${viewMode === 'reservations' ? 'active' : ''}`}
@@ -224,6 +307,14 @@ const AdminPortal = () => {
           >
             Reservations
           </button>
+          {userRole === 'admin' && (
+            <button 
+              className={`toggle-btn ${viewMode === 'staff' ? 'active' : ''}`}
+              onClick={() => { setViewMode('staff'); setSelectedOrder(null); setSelectedTable(null); setSelectedReservation(null); }}
+            >
+              Staff
+            </button>
+          )}
         </div>
 
         <div className="settings-panel">
@@ -248,7 +339,6 @@ const AdminPortal = () => {
 
         <ul className="order-list">
           {viewMode === 'orders' ? (
-            // ORDERS VIEW
             <>
               {orders.map(order => (
                 <li 
@@ -268,7 +358,6 @@ const AdminPortal = () => {
               {orders.length === 0 && <p className="no-orders">No orders yet.</p>}
             </>
           ) : viewMode === 'tables' ? (
-            // TABLES VIEW
             <>
               {activeTables.map(table => (
                 <li 
@@ -287,8 +376,7 @@ const AdminPortal = () => {
               ))}
               {activeTables.length === 0 && <p className="no-orders">No active tables.</p>}
             </>
-          ) : (
-            // RESERVATIONS VIEW
+          ) : viewMode === 'reservations' ? (
             <>
               {reservations.map(resv => (
                 <li 
@@ -303,23 +391,21 @@ const AdminPortal = () => {
                   <div className="order-item-summary">
                     {resv.date} at {resv.time} - {resv.guests} Guests
                   </div>
-                  {resv.request && (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-accent)', marginTop: '4px', fontStyle: 'italic' }}>
-                      Request: {resv.request.length > 30 ? resv.request.substring(0, 30) + '...' : resv.request}
-                    </div>
-                  )}
                   <div className={`status-text ${resv.status}`}>{resv.status.toUpperCase()}</div>
                 </li>
               ))}
               {reservations.length === 0 && <p className="no-orders">No reservations yet.</p>}
             </>
+          ) : (
+            <div style={{ padding: '20px', color: '#888', textAlign: 'center' }}>
+              Select options from the staff management panel on the right.
+            </div>
           )}
         </ul>
       </div>
 
       <div className="admin-main">
         {viewMode === 'orders' && selectedOrder ? (
-          // KITCHEN ORDER TICKET (KOT)
           <div className="kot-container">
             <div className="kot-paper" id={`printable-bill-${selectedOrder.id}`}>
               <div className="kot-header">
@@ -340,7 +426,6 @@ const AdminPortal = () => {
                   </li>
                 ))}
               </ul>
-
               <div className="divider"></div>
             </div>
 
@@ -354,7 +439,6 @@ const AdminPortal = () => {
             </div>
           </div>
         ) : viewMode === 'tables' && combinedBill ? (
-          // COMBINED TABLE BILL
           <div className="bill-container">
             <div className="bill-paper" id={`printable-bill-table-${combinedBill.tableNumber}`}>
               <div className="bill-header">
@@ -365,7 +449,6 @@ const AdminPortal = () => {
                   <p><strong>Table:</strong> {combinedBill.tableNumber}</p>
                   <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
                   <p><strong>Order ID(s):</strong> #{combinedBill.orderIds}</p>
-                  <p><strong>Aggregated Orders:</strong> {combinedBill.orderCount}</p>
                 </div>
                 <div className="divider"></div>
               </div>
@@ -418,7 +501,6 @@ const AdminPortal = () => {
             </div>
           </div>
         ) : viewMode === 'reservations' && selectedReservation ? (
-          // RESERVATION DETAILS
           <div className="kot-container">
             <div className="kot-paper" style={{ padding: '30px' }}>
               <div className="kot-header">
@@ -426,7 +508,7 @@ const AdminPortal = () => {
                 <span className={`status-badge ${selectedReservation.status}`}>{selectedReservation.status}</span>
               </div>
               <div style={{ background: 'var(--color-accent)', color: '#fff', borderRadius: '8px', padding: '10px 16px', marginBottom: '16px', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.05em' }}>
-                {selectedReservation.reservationNo || '#' + selectedReservation.id.toUpperCase()}
+                {selectedReservation.reservationNo}
               </div>
               <div className="kot-meta">
                 <p><strong>Phone:</strong> {selectedReservation.phone}</p>
@@ -435,13 +517,11 @@ const AdminPortal = () => {
                 <p><strong>Time:</strong> {selectedReservation.time}</p>
                 <p><strong>Guests:</strong> {selectedReservation.guests}</p>
               </div>
-              
               <div className="divider"></div>
               <div style={{ marginTop: '20px' }}>
                 <h4 style={{ marginBottom: '10px', color: 'var(--color-primary)' }}>Special Request</h4>
                 <p style={{ color: '#333' }}>{selectedReservation.request ? selectedReservation.request : <em>None provided</em>}</p>
               </div>
-              
               <div className="divider" style={{ marginTop: '20px' }}></div>
             </div>
 
@@ -454,6 +534,57 @@ const AdminPortal = () => {
               )}
             </div>
           </div>
+        ) : viewMode === 'staff' && userRole === 'admin' ? (
+          <div className="staff-management-container" style={{ width: '100%', maxWidth: '600px', margin: '0 auto', background: '#1a1a1a', padding: '30px', borderRadius: '8px', border: '1px solid #333' }}>
+            <h2 style={{ color: 'var(--color-accent)', marginBottom: '20px' }}>Staff & Employee Management</h2>
+            
+            <form onSubmit={handleAddStaff} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '40px', background: '#222', padding: '20px', borderRadius: '6px' }}>
+              <h3 style={{ color: '#fff', fontSize: '1.1rem' }}>Create New Employee Login</h3>
+              <input 
+                type="text" 
+                placeholder="Username" 
+                value={newStaffUser}
+                onChange={e => setNewStaffUser(e.target.value)}
+                style={{ padding: '10px', background: '#111', border: '1px solid #444', color: '#fff', borderRadius: '4px' }}
+              />
+              <input 
+                type="password" 
+                placeholder="Password" 
+                value={newStaffPass}
+                onChange={e => setNewStaffPass(e.target.value)}
+                style={{ padding: '10px', background: '#111', border: '1px solid #444', color: '#fff', borderRadius: '4px' }}
+              />
+              <select 
+                value={newStaffRole}
+                onChange={e => setNewStaffRole(e.target.value)}
+                style={{ padding: '10px', background: '#111', border: '1px solid #444', color: '#fff', borderRadius: '4px' }}
+              >
+                <option value="staff">Staff / Cook</option>
+                <option value="admin">Administrator</option>
+              </select>
+              <button type="submit" className="btn-primary" style={{ padding: '10px' }}>Create Account</button>
+            </form>
+
+            <h3 style={{ color: '#fff', marginBottom: '15px' }}>Current Active Employees</h3>
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {staffList.map(staff => (
+                <li key={staff.id} style={{ display: 'flex', justifyContent: 'between', alignItems: 'center', padding: '12px', borderBottom: '1px solid #333', background: '#222', borderRadius: '4px', marginBottom: '8px' }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{staff.username}</span> 
+                    <span style={{ marginLeft: '10px', fontSize: '0.8rem', background: 'rgba(212, 175, 55, 0.2)', color: 'var(--color-accent)', padding: '2px 6px', borderRadius: '4px' }}>{staff.role}</span>
+                  </div>
+                  {staff.username !== 'admin' && (
+                    <button 
+                      onClick={() => handleDeleteStaff(staff.username)}
+                      style={{ padding: '6px 12px', background: '#f44336', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : (
           <div className="empty-state">
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="1">
@@ -461,10 +592,9 @@ const AdminPortal = () => {
               <polyline points="14 2 14 8 20 8"></polyline>
               <line x1="16" y1="13" x2="8" y2="13"></line>
               <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
             <h2>
-              {viewMode === 'orders' ? 'Select an order to view bill' : 
+              {viewMode === 'orders' ? 'Select an order to view KOT' : 
                viewMode === 'tables' ? 'Select a table to view combined bill' : 
                'Select a reservation to view details'}
             </h2>
