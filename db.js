@@ -1,88 +1,82 @@
-import sqlite3 from 'sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import mysql from 'mysql2/promise';
 import bcrypt from 'bcryptjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let pool;
 
-const dbPath = path.join(__dirname, 'cafe.db');
-
-// Connect to SQLite Database
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Database connection failed:', err.message);
-  } else {
-    console.log('Connected to the SQLite database.');
-  }
-});
-
-// Promisified Database Helpers
-export const query = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+const config = {
+  host: process.env.MYSQL_HOST || 'localhost',
+  user: process.env.MYSQL_USER || 'root',
+  password: process.env.MYSQL_PASSWORD || '',
+  database: process.env.MYSQL_DATABASE || 'cafe_db',
+  port: parseInt(process.env.MYSQL_PORT || '3306'),
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 };
 
-export const run = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve({ id: this.lastID, changes: this.changes });
-    });
-  });
+// If DATABASE_URL is present, use it directly (common for cloud deployment)
+if (process.env.DATABASE_URL) {
+  pool = mysql.createPool(process.env.DATABASE_URL);
+} else {
+  pool = mysql.createPool(config);
+}
+
+// MySQL query wrapper
+export const query = async (sql, params = []) => {
+  const [rows] = await pool.execute(sql, params);
+  return rows;
 };
 
-export const get = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+// MySQL run wrapper (inserts/updates)
+export const run = async (sql, params = []) => {
+  const [result] = await pool.execute(sql, params);
+  return { id: result.insertId, changes: result.affectedRows };
 };
 
-// Initialize Tables
+// MySQL get single row wrapper
+export const get = async (sql, params = []) => {
+  const [rows] = await pool.execute(sql, params);
+  return rows[0] || null;
+};
+
+// Initialize Tables (MySQL Syntax)
 export async function initDatabase() {
-  // Create Users Table
+  // 1. Create Users Table
   await run(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'staff'
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(255) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      role VARCHAR(50) NOT NULL DEFAULT 'staff'
     )
   `);
 
-  // Create Orders Table
+  // 2. Create Orders Table
   await run(`
     CREATE TABLE IF NOT EXISTS orders (
-      id TEXT PRIMARY KEY,
-      tableNumber INTEGER NOT NULL,
-      total REAL NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      items TEXT NOT NULL, -- JSON string
-      date TEXT NOT NULL
+      id VARCHAR(255) PRIMARY KEY,
+      tableNumber INT NOT NULL,
+      total DOUBLE NOT NULL,
+      status VARCHAR(50) NOT NULL DEFAULT 'pending',
+      items TEXT NOT NULL,
+      date VARCHAR(100) NOT NULL
     )
   `);
 
-  // Create Reservations Table
+  // 3. Create Reservations Table
   await run(`
     CREATE TABLE IF NOT EXISTS reservations (
-      id TEXT PRIMARY KEY,
-      reservationNo TEXT UNIQUE NOT NULL,
-      name TEXT NOT NULL,
-      phone TEXT NOT NULL,
-      email TEXT,
-      date TEXT NOT NULL,
-      time TEXT NOT NULL,
-      guests INTEGER NOT NULL,
+      id VARCHAR(255) PRIMARY KEY,
+      reservationNo VARCHAR(100) UNIQUE NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      phone VARCHAR(50) NOT NULL,
+      email VARCHAR(255),
+      date VARCHAR(100) NOT NULL,
+      time VARCHAR(100) NOT NULL,
+      guests INT NOT NULL,
       request TEXT,
-      status TEXT NOT NULL DEFAULT 'pending',
-      createdAt TEXT NOT NULL
+      status VARCHAR(50) NOT NULL DEFAULT 'pending',
+      createdAt VARCHAR(100) NOT NULL
     )
   `);
 
@@ -95,7 +89,7 @@ export async function initDatabase() {
       'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
       ['admin', hashedPassword, 'admin']
     );
-    console.log('[DB] Seeded default admin account (username: admin)');
+    console.log('[DB] Seeded default admin account in MySQL (username: admin)');
   }
 }
 
